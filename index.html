@@ -14,6 +14,12 @@ button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-r
 button.on{background:var(--on);border-color:var(--on);color:#fff}
 #wrap{flex:1;min-height:200px;position:relative;display:flex;align-items:center;justify-content:center;padding:4px}
 canvas{touch-action:none;border-radius:8px;display:block}
+#pn{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:5;padding:12px;box-sizing:border-box}
+#pn[hidden]{display:none}
+#pb{background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:14px;padding:12px;width:100%;max-width:560px;max-height:85%;overflow:auto}
+.row{display:flex;gap:6px;align-items:center;margin:6px 0}
+input{flex:1;min-width:0;font:inherit;padding:9px;border-radius:10px;border:1px solid var(--bd);background:var(--btn);color:var(--fg);-webkit-user-select:text;user-select:text}
+#pmsg{font-size:13px;opacity:.8;margin-top:6px}
 </style></head><body>
 <div id="bar">
 <button data-t="move" class="on">✋ Двигать</button>
@@ -22,13 +28,20 @@ canvas{touch-action:none;border-radius:8px;display:block}
 <button id="ab">+ Синий</button>
 <button id="ar">+ Красный</button>
 <button id="am">+ Мяч</button>
+<button id="ac">+ Конус</button>
 <span class="sep"></span>
 <button id="undo">↶ Отмена</button>
 <button id="cl">Стереть пути</button>
 <button id="ca">Очистить всё</button>
 <button id="rt">⟳ Повернуть</button>
+<button id="pos">📁 Позиции</button>
 </div>
 <div id="wrap"><canvas id="cv"></canvas></div>
+<div id="pn" hidden><div id="pb">
+<div class="row"><b style="flex:1">Сохранённые позиции</b><button id="pc">✕</button></div>
+<div class="row"><input id="pname" placeholder="Название текущей позиции"><button id="psave">💾 Сохранить</button></div>
+<div id="plist"></div><div id="pmsg"></div>
+</div></div>
 <script>
 window.addEventListener('error',e=>{const d=document.createElement('div');d.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;background:#b00020;color:#fff;padding:8px;border-radius:8px;font-size:13px;z-index:9';d.textContent='Ошибка: '+e.message;document.body.appendChild(d)});
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),wrap=document.getElementById('wrap');
@@ -69,6 +82,13 @@ function ball(x,y,ghost){
   ctx.fillStyle=ghost?'#000':'#ffd23f';ctx.strokeStyle=ghost?'#000':'#5b4a00';ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(x,y,R*0.5,0,7);ctx.fill();ctx.stroke();ctx.restore();
 }
+function cone(x,y){
+  ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=2;
+  ctx.fillStyle='#e5221f';ctx.beginPath();ctx.arc(x,y,R*0.55,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#ff7b6b';ctx.beginPath();ctx.arc(x,y,R*0.3,0,7);ctx.fill();
+  ctx.fillStyle='#8f0f0d';ctx.beginPath();ctx.arc(x,y,R*0.12,0,7);ctx.fill();
+  ctx.restore();
+}
 function draw(){
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#2a6bb0';poly([[0,0],[1,0],[1,1],[0,1]],true);ctx.fill();
@@ -92,7 +112,7 @@ function draw(){
   }
   for(const it of items){
     const[x,y]=P(it.u,it.v);
-    it.t==='ball'?ball(x,y,moves.some(m=>m.of===it.id)):figure(x,y,it.team,false);
+    it.t==='ball'?ball(x,y,moves.some(m=>m.of===it.id)):it.t==='cone'?cone(x,y):figure(x,y,it.team,false);
   }
   for(const m of moves){
     if(m.k!=='ball')continue;
@@ -106,7 +126,7 @@ function pos(e){const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.cli
 function hit(x,y){
   for(let i=items.length-1;i>=0;i--){
     const it=items[i],[px,py]=P(it.u,it.v);
-    if(Math.hypot(px-x,py-y)<(it.t==='ball'?R*1.0:R*1.25))return it;
+    if(Math.hypot(px-x,py-y)<(it.t==='ball'?R*1.0:it.t==='cone'?R*0.9:R*1.25))return it;
   }
   return null;
 }
@@ -155,7 +175,7 @@ cv.addEventListener('pointerdown',e=>{
     if(bm){startShot(items.find(i=>i.id===bm.of),bm);draw();return}
     const it=hit(x,y);
     if(it&&it.t==='ball'&&it.placed){startShot(it,null);draw();return}
-    if(it){snap();if(it.placed){const m={id:nid++,of:it.id,k:'p',team:it.team,pts:[[it.u,it.v]]};moves.push(m);drag={it,m,lq:[it.u,it.v]}}else drag={it,m:null,moved:false,x0:x,y0:y}}
+    if(it){snap();if(it.placed&&it.t!=='cone'){const m={id:nid++,of:it.id,k:'p',team:it.team,pts:[[it.u,it.v]]};moves.push(m);drag={it,m,lq:[it.u,it.v]}}else drag={it,m:null,moved:false,x0:x,y0:y}}
   }else erase(x,y);
   draw();
 });
@@ -196,10 +216,55 @@ document.getElementById('am').onclick=()=>{
   items=items.filter(i=>i.t!=='ball');moves=moves.filter(m=>!old.includes(m.of));
   items.push({id:nid++,t:'ball',u:0.5,v:0.6});draw();
 };
+document.getElementById('ac').onclick=()=>{
+  const n=items.filter(i=>i.t==='cone').length;if(n>=20)return;
+  snap();items.push({id:nid++,t:'cone',u:0.1+0.16*(n%6),v:0.4-0.06*Math.floor(n/6)});draw();
+};
 document.getElementById('undo').onclick=()=>{if(hist.length){const s=JSON.parse(hist.pop());items=s.items;moves=s.moves;draw()}};
 document.getElementById('cl').onclick=()=>{snap();for(const it of items)if(it.t==='ball'){const s=moves.filter(m=>m.of===it.id);if(s.length){const p=s[s.length-1].pts[s[s.length-1].pts.length-1];it.u=p[0];it.v=p[1]}}moves=[];draw()};
 document.getElementById('ca').onclick=()=>{snap();items=[];moves=[];draw()};
 document.getElementById('rt').onclick=()=>{manual=true;rot=!rot;resize()};
+const KEY='padel-positions-v1';let mem=null;
+function getAll(){try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):(mem||[])}catch(e){return mem||[]}}
+function putAll(a){mem=a;try{localStorage.setItem(KEY,JSON.stringify(a));return true}catch(e){return false}}
+function curState(){return JSON.parse(JSON.stringify({items,moves}))}
+function twoStep(b,label,fn){
+  let t=0;b.textContent=label;
+  b.onclick=()=>{if(!t){b.textContent='Точно?';t=setTimeout(()=>{b.textContent=label;t=0},3000)}else{clearTimeout(t);t=0;fn()}};
+}
+function pmsg(t){document.getElementById('pmsg').textContent=t||''}
+function renderList(){
+  const a=getAll(),box=document.getElementById('plist');box.innerHTML='';
+  if(!a.length){box.textContent='Пока нет сохранённых позиций.';return}
+  a.forEach(p=>{
+    const r=document.createElement('div');r.className='row';
+    const inp=document.createElement('input');inp.value=p.name;
+    inp.onchange=()=>{const all=getAll(),q=all.find(z=>z.id===p.id);if(q){q.name=inp.value.trim()||q.name;putAll(all);inp.value=q.name;pmsg('Название изменено.')}};
+    const bo=document.createElement('button');bo.textContent='Открыть';bo.onclick=()=>loadPos(p.id);
+    const bw=document.createElement('button');
+    twoStep(bw,'Перезаписать',()=>{const all=getAll(),q=all.find(z=>z.id===p.id);if(q){q.state=curState();putAll(all);renderList();pmsg('Позиция «'+q.name+'» обновлена текущей расстановкой.')}});
+    const bd=document.createElement('button');
+    twoStep(bd,'✕',()=>{putAll(getAll().filter(z=>z.id!==p.id));renderList();pmsg('Позиция удалена.')});
+    r.appendChild(inp);r.appendChild(bo);r.appendChild(bw);r.appendChild(bd);box.appendChild(r);
+  });
+}
+function loadPos(id){
+  const p=getAll().find(z=>z.id===id);if(!p)return;
+  snap();
+  items=JSON.parse(JSON.stringify(p.state.items));moves=JSON.parse(JSON.stringify(p.state.moves));
+  nid=1+Math.max(0,...items.map(i=>i.id||0),...moves.map(m=>m.id||0));
+  drag=null;document.getElementById('pn').hidden=true;draw();
+}
+document.getElementById('pos').onclick=()=>{pmsg('');renderList();document.getElementById('pn').hidden=false};
+document.getElementById('pc').onclick=()=>{document.getElementById('pn').hidden=true};
+document.getElementById('pn').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.hidden=true});
+document.getElementById('psave').onclick=()=>{
+  const a=getAll(),inp=document.getElementById('pname');
+  const name=inp.value.trim()||('Позиция '+(a.length+1));
+  a.push({id:Date.now()+Math.random().toString(36).slice(2,6),name,state:curState()});
+  const ok=putAll(a);inp.value='';renderList();
+  pmsg(ok?'Сохранено: «'+name+'».':'Память браузера недоступна: позиция сохранится только до закрытия приложения.');
+};
 window.addEventListener('resize',resize);
 if(window.ResizeObserver)new ResizeObserver(resize).observe(wrap);
 setTimeout(resize,300);setTimeout(resize,1000);
