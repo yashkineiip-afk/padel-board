@@ -10,6 +10,7 @@ html,body{height:100%;margin:0;overflow:hidden}
 body{background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none}
 #bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px}
 .sep{width:8px}
+#bar.play button:not(.keep){opacity:.4;pointer-events:none}
 button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:9px 12px;font:inherit;touch-action:manipulation}
 button.on{background:var(--on);border-color:var(--on);color:#fff}
 #wrap{flex:1;min-height:200px;position:relative;display:flex;align-items:center;justify-content:center;padding:4px}
@@ -35,6 +36,9 @@ input{flex:1;min-width:0;font:inherit;padding:9px;border-radius:10px;border:1px 
 <button id="ca">Очистить всё</button>
 <button id="rt">⟳ Повернуть</button>
 <button id="pos">📁 Позиции</button>
+<span class="sep"></span>
+<button id="an" class="keep">▶ Анимация</button>
+<button id="sp" class="keep">Скорость ×1</button>
 </div>
 <div id="wrap"><canvas id="cv"></canvas></div>
 <div id="pn" hidden><div id="pb">
@@ -91,6 +95,7 @@ function cone(x,y){
 }
 function draw(){
   ctx.clearRect(0,0,W,H);
+  const V=anim?animView((performance.now()-anim.t0)/1000):{items,moves},mv=V.moves,its=V.items;
   ctx.fillStyle='#2a6bb0';poly([[0,0],[1,0],[1,1],[0,1]],true);ctx.fill();
   ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([]);
   const a=0.5-6.95/20,b=0.5+6.95/20;
@@ -99,25 +104,25 @@ function draw(){
   ctx.lineWidth=6;poly([[0,0],[1,0],[1,1],[0,1]],true);ctx.stroke();
   ctx.strokeStyle='#e8eef5';ctx.lineWidth=5;poly([[0,0.5],[1,0.5]]);ctx.stroke();
   ctx.lineCap='round';ctx.lineJoin='round';
-  for(const m of moves){
+  for(const m of mv){
     const pts=m.pts.map(p=>P(p[0],p[1]));
     ctx.strokeStyle=m.k==='ball'?'#ffd23f':(m.team==='b'?'#a9c9ff':'#ffbcbe');
     ctx.lineWidth=3.5;ctx.setLineDash(m.k==='ball'?[]:[9,7]);
     ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();
     ctx.setLineDash([]);
   }
-  for(const m of moves){
+  for(const m of mv){
     const s=P(m.pts[0][0],m.pts[0][1]);
     if(m.k!=='ball')figure(s[0],s[1],m.team,true);
   }
-  for(const it of items){
+  for(const it of its){
     const[x,y]=P(it.u,it.v);
-    it.t==='ball'?ball(x,y,moves.some(m=>m.of===it.id)):it.t==='cone'?cone(x,y):figure(x,y,it.team,false);
+    it.t==='ball'?ball(x,y,mv.some(m=>m.of===it.id)):it.t==='cone'?cone(x,y):figure(x,y,it.team,false);
   }
-  for(const m of moves){
+  for(const m of mv){
     if(m.k!=='ball')continue;
     const e=P(m.pts[m.pts.length-1][0],m.pts[m.pts.length-1][1]);
-    ball(e[0],e[1],moves.some(c=>c.par===m.id));
+    ball(e[0],e[1],mv.some(c=>c.par===m.id));
   }
 }
 let tt=null;
@@ -168,6 +173,7 @@ function rmShot(m){
   moves=moves.filter(c=>!S.has(c.id));
 }
 cv.addEventListener('pointerdown',e=>{
+  if(anim)return;
   cv.setPointerCapture(e.pointerId);
   const[x,y]=pos(e);
   if(tool==='move'){
@@ -265,6 +271,55 @@ document.getElementById('psave').onclick=()=>{
   const ok=putAll(a);inp.value='';renderList();
   pmsg(ok?'Сохранено: «'+name+'».':'Память браузера недоступна: позиция сохранится только до закрытия приложения.');
 };
+let anim=null,mi=1;const MULT=[0.5,1,2];
+function mlen(pts){let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot((pts[i][0]-pts[i-1][0])*10,(pts[i][1]-pts[i-1][1])*20);return L}
+function partial(pts,f){
+  if(f>=1)return pts;
+  const target=mlen(pts)*f;let acc=0;const out=[pts[0]];
+  for(let i=1;i<pts.length;i++){
+    const seg=Math.hypot((pts[i][0]-pts[i-1][0])*10,(pts[i][1]-pts[i-1][1])*20);
+    if(acc+seg>=target){const k=seg?(target-acc)/seg:0;out.push([pts[i-1][0]+(pts[i][0]-pts[i-1][0])*k,pts[i-1][1]+(pts[i][1]-pts[i-1][1])*k]);return out}
+    acc+=seg;out.push(pts[i]);
+  }
+  return out;
+}
+function schedule(mult){
+  let t=0;const list=[];
+  for(const m of moves){const d=Math.max(0.6,mlen(m.pts)/(m.k==='ball'?5:1.5))/mult;list.push({m,s:t,d});t+=d+0.5/mult}
+  return {list,total:t};
+}
+function animView(t){
+  const vm=[],last={};
+  for(const e of anim.list){
+    if(t<e.s)continue;
+    const pts=partial(e.m.pts,Math.min(1,(t-e.s)/e.d));
+    vm.push(Object.assign({},e.m,{pts}));last[e.m.of]=pts[pts.length-1];
+  }
+  const vi=items.map(it=>{
+    if(it.t!=='p')return it;
+    if(last[it.id])return Object.assign({},it,{u:last[it.id][0],v:last[it.id][1]});
+    const f=moves.find(m=>m.of===it.id);
+    return f?Object.assign({},it,{u:f.pts[0][0],v:f.pts[0][1]}):it;
+  });
+  return {items:vi,moves:vm};
+}
+function setBtn(){document.getElementById('an').textContent=anim?'■ Стоп':'▶ Анимация';document.getElementById('sp').textContent='Скорость ×'+MULT[mi]}
+function tick(){
+  if(!anim)return;
+  const t=(performance.now()-anim.t0)/1000;
+  draw();
+  if(t>anim.total+0.4){stopAnim();return}
+  requestAnimationFrame(tick);
+}
+function startAnim(){
+  if(!moves.length){toast('Сначала проведите игроков и мяч, чтобы было что проигрывать.');return}
+  const sc=schedule(MULT[mi]);
+  anim={list:sc.list,total:sc.total,t0:performance.now()};
+  document.getElementById('bar').classList.add('play');setBtn();tick();
+}
+function stopAnim(){anim=null;document.getElementById('bar').classList.remove('play');setBtn();draw()}
+document.getElementById('an').onclick=()=>{anim?stopAnim():startAnim()};
+document.getElementById('sp').onclick=()=>{mi=(mi+1)%MULT.length;setBtn();if(anim)startAnim()};
 window.addEventListener('resize',resize);
 if(window.ResizeObserver)new ResizeObserver(resize).observe(wrap);
 setTimeout(resize,300);setTimeout(resize,1000);
