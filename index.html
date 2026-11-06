@@ -108,8 +108,8 @@ function figure(x,y,team,ghost,ga){
   ctx.lineWidth=1.5;ctx.strokeStyle=ghost?'#000':'#6b4a2f';ctx.stroke();
   ctx.restore();
 }
-function ball(x,y,ghost){
-  ctx.save();if(ghost)ctx.globalAlpha=0.4;
+function ball(x,y,ghost,ga){
+  ctx.save();ctx.globalAlpha=(ghost?0.4:1)*(ga===undefined?1:ga);
   ctx.fillStyle=ghost?'#000':'#ffd23f';ctx.strokeStyle=ghost?'#000':'#5b4a00';ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(x,y,R*0.5,0,7);ctx.fill();ctx.stroke();ctx.restore();
 }
@@ -133,25 +133,29 @@ function draw(){
   for(const it of its)if(it.t==='stroke')drawStroke(it);
   ctx.lineCap='round';ctx.lineJoin='round';
   for(const m of mv){
+    if(!vis(m))continue;
+    ctx.globalAlpha=fa(m);
     const pts=m.pts.map(p=>P(p[0],p[1]));
     ctx.strokeStyle=m.k==='ball'?'#ffd23f':(m.team==='b'?'#a9c9ff':'#ffbcbe');
     ctx.lineWidth=3.5;ctx.setLineDash(m.k==='ball'?[]:[9,7]);
     ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.setLineDash([]);ctx.globalAlpha=1;
   }
   for(const m of mv){
     const s=P(m.pts[0][0],m.pts[0][1]);
-    if(m.k!=='ball'){const age=m.age!==undefined?m.age:(m.ts?(Date.now()-m.ts)/1000:0);if(age<5)figure(s[0],s[1],m.team,true,age>4?5-age:1)}
+    if(m.k!=='ball'&&vis(m))figure(s[0],s[1],m.team,true,fa(m));
   }
   for(const it of its){
     if(it.t==='ruler'||it.t==='stroke')continue;
     const[x,y]=P(it.u,it.v);
-    it.t==='ball'?ball(x,y,mv.some(m=>m.of===it.id)):it.t==='cone'?cone(x,y):figure(x,y,it.team,false);
+    it.t==='ball'?drawBallItem(it,x,y,mv):it.t==='cone'?cone(x,y):figure(x,y,it.team,false);
   }
+  const lastOf={};for(const m of mv)if(m.k==='ball')lastOf[m.of]=m;
   for(const m of mv){
     if(m.k!=='ball')continue;
     const e=P(m.pts[m.pts.length-1][0],m.pts[m.pts.length-1][1]);
-    ball(e[0],e[1],mv.some(c=>c.par===m.id));
+    if(lastOf[m.of]===m)ball(e[0],e[1],false);
+    else if(vis(m))ball(e[0],e[1],mv.some(c=>c.par===m.id&&vis(c)),fa(m));
   }
   for(const it of its)if(it.t==='ruler')drawRuler(it);
 }
@@ -161,6 +165,7 @@ function pos(e){const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.cli
 function hit(x,y){
   for(let i=items.length-1;i>=0;i--){
     const it=items[i];if(it.t==='ruler'||it.t==='stroke')continue;
+    if(it.t==='ball'){const bs=moves.filter(m=>m.of===it.id&&m.k==='ball');if(bs.length&&!bs.some(vis))continue}
     const[px,py]=P(it.u,it.v);
     if(Math.hypot(px-x,py-y)<(it.t==='ball'?R*1.0:it.t==='cone'?R*0.9:R*1.25))return it;
   }
@@ -176,7 +181,8 @@ function erase(x,y){
   const be=endHit(x,y);
   if(be){rmShot(be);return}
   for(let i=moves.length-1;i>=0;i--){
-    const m=moves[i],s=P(m.pts[0][0],m.pts[0][1]);
+    const m=moves[i];if(!vis(m))continue;
+    const s=P(m.pts[0][0],m.pts[0][1]);
     const near=(m.k!=='ball'&&Math.hypot(s[0]-x,s[1]-y)<R*1.1)||m.pts.some(p=>{const q=P(p[0],p[1]);return Math.hypot(q[0]-x,q[1]-y)<(m.k==='ball'?R*0.9:16)});
     if(near){rmShot(m);return}
   }
@@ -221,20 +227,32 @@ function drawRuler(r){
   ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,mx,my+1);
   ctx.restore();
 }
-function startPen(x,y){snap();const st={id:nid++,t:'stroke',pts:[Q(x,y)]};items.push(st);drag={st}}
+function startPen(x,y){clearTimeout(penT);snap();const st={id:nid++,t:'stroke',pts:[Q(x,y)]};items.push(st);drag={st}}
 function drawStroke(st){
   ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=3.5;ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash([]);
   ctx.beginPath();st.pts.forEach((p,i)=>{const q=P(p[0],p[1]);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])});ctx.stroke();ctx.restore();
 }
+let penT=null;
+function armPen(){clearTimeout(penT);penT=setTimeout(()=>{if(tool==='pen'&&!(drag&&drag.st))setTool('move')},2000)}
+function ageOf(m){return m.age!==undefined?m.age:(m.ts?(Date.now()-m.ts)/1000:0)}
+function vis(m){return ageOf(m)<5}
+function fa(m){const a=ageOf(m);return a>4?Math.max(0,5-a):1}
+function isLastShot(m){const i=moves.lastIndexOf(m);for(let j=moves.length-1;j>i;j--)if(moves[j].k==='ball'&&moves[j].of===m.of)return false;return true}
+function drawBallItem(it,x,y,mv){
+  const ms=mv.filter(m=>m.of===it.id&&m.k==='ball');
+  if(!ms.length){ball(x,y,false);return}
+  const vs=ms.filter(vis);
+  if(vs.length)ball(x,y,true,Math.max(...vs.map(fa)));
+}
 let fading=false;
 function fadeStart(){
   if(fading)return;fading=true;
-  (function f(){draw();if(!anim&&moves.some(m=>m.k==='p'&&m.ts&&Date.now()-m.ts<5200))requestAnimationFrame(f);else fading=false})();
+  (function f(){draw();if(!anim&&moves.some(m=>m.ts&&Date.now()-m.ts<5200))requestAnimationFrame(f);else fading=false})();
 }
 function kids(id){return moves.filter(m=>m.par===id)}
 function endHit(x,y){
   for(let i=moves.length-1;i>=0;i--){
-    const m=moves[i];if(m.k!=='ball')continue;
+    const m=moves[i];if(m.k!=='ball'||!(vis(m)||isLastShot(m)))continue;
     const e=m.pts[m.pts.length-1],q=P(e[0],e[1]);
     if(Math.hypot(q[0]-x,q[1]-y)<R)return m;
   }
@@ -285,18 +303,18 @@ cv.addEventListener('pointermove',e=>{
   draw();
 });
 function up(){
-  if(drag&&drag.st){const st=drag.st;if(st.pts.length<2){items.splice(items.indexOf(st),1);hist.pop()}drag=null;draw();return}
+  if(drag&&drag.st){const st=drag.st;if(st.pts.length<2){items.splice(items.indexOf(st),1);hist.pop()}drag=null;armPen();draw();return}
   if(drag&&drag.rl){endRuler();drag=null;draw();return}
   if(drag){
     const m=drag.m,it=drag.it;
     if(!m){if(drag.moved)it.placed=true;else hist.pop()}
     else if(m.pts.length<2){moves.splice(moves.indexOf(m),1);hist.pop()}
-    else{m.pts.push(drag.bs?drag.lq:[it.u,it.v]);if(m.k==='p'){m.ts=Date.now();fadeStart()}}
+    else{m.pts.push(drag.bs?drag.lq:[it.u,it.v]);m.ts=Date.now();fadeStart()}
   }
   drag=null;draw();
 }
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
-function setTool(n){tool=n;document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x.dataset.t===n))}
+function setTool(n){tool=n;clearTimeout(penT);if(n==='pen')armPen();document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x.dataset.t===n))}
 document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>setTool(b.dataset.t));
 function addP(team){
   const n=items.filter(i=>i.t==='p'&&i.team===team).length+1;if(n>4)return;
