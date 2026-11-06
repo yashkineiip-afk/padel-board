@@ -50,7 +50,7 @@ input{font-size:16px}
 <button data-t="pen" title="Карандаш">✏️<span class="lb"> Карандаш</span></button>
 <button data-t="ruler" title="Линейка">📏<span class="lb"> Линейка</span></button>
 <div class="dd"><button id="addb">＋<span class="lb"> Добавить</span> ▾</button>
-<div class="menu" id="m-add" hidden><button id="ab">🔵 Синий игрок</button><button id="ar">🔴 Красный игрок</button><button id="am">🎾 Мяч (до 4)</button><button id="ac">🔺 Конус</button></div></div>
+<div class="menu" id="m-add" hidden><button id="ab">🔵 Синий игрок</button><button id="ar">🔴 Красный игрок</button><button id="am">🎾 Мяч (до 4)</button><button id="ac">🔺 Конус</button><button id="acch">🧑‍🏫 Тренер с корзиной</button></div></div>
 <button id="undo" title="Отмена">↶<span class="lb"> Отмена</span></button>
 <span class="gap"></span>
 <button id="an" class="keep">▶<span class="lb"> Анимация</span></button>
@@ -99,6 +99,17 @@ function figure(x,y,team,ghost,ga){
   if(ghost)ctx.globalAlpha=0.4*(ga===undefined?1:ga);
   const body=ghost?'#000':COL[team],skin=ghost?'#000':'#f1c9a5',rk=ghost?'#000':'#2b2b2b';
   ctx.lineCap='round';
+  if(team==='c'){
+    ctx.beginPath();ctx.moveTo(-R*0.7,-R*0.05);ctx.lineTo(-R*1.05,-R*0.45);
+    ctx.lineWidth=3.5;ctx.strokeStyle=ghost?'#000':'#161616';ctx.stroke();
+    ctx.lineWidth=2;ctx.strokeStyle=ghost?'#000':'#fff';
+    ctx.beginPath();ctx.ellipse(-R*1.3,-R*0.65,R*0.55,R*0.45,0,0,7);ctx.fillStyle=ghost?'#000':'#c98a2b';ctx.fill();ctx.stroke();
+    if(!ghost){ctx.fillStyle='#ffd23f';for(const q of [[-1.5,-0.8],[-1.15,-0.8],[-1.3,-0.5]]){ctx.beginPath();ctx.arc(R*q[0],R*q[1],R*0.14,0,7);ctx.fill()}}
+    ctx.beginPath();ctx.ellipse(0,0,R,R*0.62,0,0,7);ctx.fillStyle=ghost?'#000':'#161616';ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.arc(0,-R*0.05,R*0.42,0,7);ctx.fillStyle=skin;ctx.fill();
+    ctx.lineWidth=1.5;ctx.strokeStyle=ghost?'#000':'#6b4a2f';ctx.stroke();
+    ctx.restore();return;
+  }
   ctx.beginPath();ctx.moveTo(R*0.7,-R*0.1);ctx.lineTo(R*1.15,-R*0.65);
   ctx.lineWidth=3;ctx.strokeStyle=ghost?'#000':'#e8e8e8';ctx.stroke();
   ctx.lineWidth=2;ctx.strokeStyle=ghost?'#000':'#fff';
@@ -136,7 +147,7 @@ function draw(){
     if(!vis(m))continue;
     ctx.globalAlpha=fa(m);
     const pts=m.pts.map(p=>P(p[0],p[1]));
-    ctx.strokeStyle=m.k==='ball'?'#ffd23f':(m.team==='b'?'#a9c9ff':'#ffbcbe');
+    ctx.strokeStyle=m.k==='ball'?'#ffd23f':(m.team==='b'?'#a9c9ff':m.team==='c'?'#e0e0e0':'#ffbcbe');
     ctx.lineWidth=3.5;ctx.setLineDash(m.k==='ball'?[]:[9,7]);
     ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();
     ctx.setLineDash([]);ctx.globalAlpha=1;
@@ -326,6 +337,10 @@ document.getElementById('am').onclick=()=>{
   const n=items.filter(i=>i.t==='ball').length;
   if(n>=4){toast('На корте уже 4 мяча.');return}
   snap();items.push({id:nid++,t:'ball',u:[0.5,0.35,0.65,0.2][n],v:0.6});draw();
+};
+document.getElementById('acch').onclick=()=>{
+  if(items.some(i=>i.t==='p'&&i.team==='c')){toast('Тренер уже на корте.');return}
+  snap();items.push({id:nid++,t:'p',team:'c',u:0.88,v:0.38});draw();
 };
 document.getElementById('ac').onclick=()=>{
   const n=items.filter(i=>i.t==='cone').length;if(n>=20)return;
