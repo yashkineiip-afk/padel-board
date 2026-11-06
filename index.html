@@ -1,19 +1,32 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Падел">
 <title>Падел-доска</title>
 <style>
-:root{--bg:#f2f4f7;--fg:#1a1d21;--btn:#fff;--bd:#cfd5dc;--on:#1f6feb;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--bg:#f2f4f7;--fg:#1a1d21;--btn:#fff;--bd:#cfd5dc;--on:#1f6feb;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(env(safe-area-inset-bottom,0px)*0.4)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171a;--fg:#eceff3;--btn:#22272d;--bd:#3a424b;--on:#4c8dff;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#14171a;--fg:#eceff3;--btn:#22272d;--bd:#3a424b;--on:#4c8dff;color-scheme:dark}
 html,body{height:100%;margin:0;overflow:hidden}
 body{background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none}
-#bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px}
+#bar{display:flex;flex-wrap:nowrap;gap:4px;padding:4px 6px;align-items:center;height:44px;box-sizing:border-box;flex:none;position:relative;z-index:4}
+#bar button{padding:6px 8px;min-height:36px;white-space:nowrap}
+.gap{flex:1}
+.lb{display:none}
+@media (min-width:700px){.lb{display:inline}#bar{gap:6px}#bar button{padding:6px 12px}}
+.dd{position:relative}
+.menu{position:absolute;top:100%;left:0;margin-top:4px;background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:6px;z-index:6;min-width:190px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.menu.r{left:auto;right:0}
+.menu[hidden]{display:none}
+.menu button{text-align:left;padding:10px 12px}
 .sep{width:8px}
 #bar.play button:not(.keep){opacity:.4;pointer-events:none}
 button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:9px 12px;font:inherit;touch-action:manipulation}
 button.on{background:var(--on);border-color:var(--on);color:#fff}
-#wrap{flex:1;min-height:200px;position:relative;display:flex;align-items:center;justify-content:center;padding:4px}
+#wrap{flex:1;min-height:200px;position:relative;display:flex;align-items:center;justify-content:center;padding:2px}
 canvas{touch-action:none;border-radius:8px;display:block}
 #pn{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:5;padding:12px;box-sizing:border-box}
 #pn[hidden]{display:none}
@@ -23,22 +36,16 @@ input{flex:1;min-width:0;font:inherit;padding:9px;border-radius:10px;border:1px 
 #pmsg{font-size:13px;opacity:.8;margin-top:6px}
 </style></head><body>
 <div id="bar">
-<button data-t="move" class="on">✋ Двигать</button>
-<button data-t="erase">Ластик</button>
-<span class="sep"></span>
-<button id="ab">+ Синий</button>
-<button id="ar">+ Красный</button>
-<button id="am">+ Мяч</button>
-<button id="ac">+ Конус</button>
-<span class="sep"></span>
-<button id="undo">↶ Отмена</button>
-<button id="cl">Стереть пути</button>
-<button id="ca">Очистить всё</button>
-<button id="rt">⟳ Повернуть</button>
-<button id="pos">📁 Позиции</button>
-<span class="sep"></span>
-<button id="an" class="keep">▶ Анимация</button>
-<button id="sp" class="keep">Скорость ×1</button>
+<button data-t="move" class="on" title="Двигать">✋<span class="lb"> Двигать</span></button>
+<button data-t="erase" title="Ластик">⌫<span class="lb"> Ластик</span></button>
+<div class="dd"><button id="addb">＋<span class="lb"> Добавить</span> ▾</button>
+<div class="menu" id="m-add" hidden><button id="ab">🔵 Синий игрок</button><button id="ar">🔴 Красный игрок</button><button id="am">🎾 Мяч</button><button id="ac">🔺 Конус</button></div></div>
+<button id="undo" title="Отмена">↶<span class="lb"> Отмена</span></button>
+<span class="gap"></span>
+<button id="an" class="keep">▶<span class="lb"> Анимация</span></button>
+<button id="sp" class="keep">×1</button>
+<div class="dd"><button id="moreb">⋯<span class="lb"> Ещё</span></button>
+<div class="menu r" id="m-more" hidden><button id="cl">Стереть пути</button><button id="ca">Очистить всё</button><button id="rt">⟳ Повернуть</button><button id="pos">📁 Позиции</button></div></div>
 </div>
 <div id="wrap"><canvas id="cv"></canvas></div>
 <div id="pn" hidden><div id="pb">
@@ -53,7 +60,7 @@ let items=[],moves=[],hist=[],tool='move',rot=null,manual=false,W=0,H=0,R=18,dra
 const COL={b:'#2f6fed',r:'#e5484d'};
 function snap(){hist.push(JSON.stringify({items,moves}));if(hist.length>60)hist.shift()}
 function resize(){
-  const aw=Math.max(120,wrap.clientWidth-8),ah=Math.max(120,wrap.clientHeight-8);
+  const aw=Math.max(120,wrap.clientWidth-4),ah=Math.max(120,wrap.clientHeight-4);
   if(!manual)rot=aw>ah;
   const rw=rot?2:1,rh=rot?1:2,s=Math.min(aw/rw,ah/rh);
   W=Math.floor(rw*s);H=Math.floor(rh*s);
@@ -303,7 +310,7 @@ function animView(t){
   });
   return {items:vi,moves:vm};
 }
-function setBtn(){document.getElementById('an').textContent=anim?'■ Стоп':'▶ Анимация';document.getElementById('sp').textContent='Скорость ×'+MULT[mi]}
+function setBtn(){document.getElementById('an').innerHTML=(anim?'■':'▶')+'<span class="lb"> '+(anim?'Стоп':'Анимация')+'</span>';document.getElementById('sp').innerHTML='<span class="lb">Скорость </span>×'+MULT[mi]}
 function tick(){
   if(!anim)return;
   const t=(performance.now()-anim.t0)/1000;
@@ -320,6 +327,12 @@ function startAnim(){
 function stopAnim(){anim=null;document.getElementById('bar').classList.remove('play');setBtn();draw()}
 document.getElementById('an').onclick=()=>{anim?stopAnim():startAnim()};
 document.getElementById('sp').onclick=()=>{mi=(mi+1)%MULT.length;setBtn();if(anim)startAnim()};
+function closeMenus(){document.querySelectorAll('.menu').forEach(m=>{m.hidden=true})}
+function toggleMenu(id){const m=document.getElementById(id),open=m.hidden;closeMenus();m.hidden=!open}
+document.getElementById('addb').onclick=()=>toggleMenu('m-add');
+document.getElementById('moreb').onclick=()=>toggleMenu('m-more');
+document.querySelectorAll('.menu').forEach(m=>m.addEventListener('click',()=>closeMenus()));
+document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('.dd')))closeMenus()});
 window.addEventListener('resize',resize);
 if(window.ResizeObserver)new ResizeObserver(resize).observe(wrap);
 setTimeout(resize,300);setTimeout(resize,1000);
