@@ -43,6 +43,24 @@ input{font-size:16px}
 #au-box .urow button{flex:1;padding:14px}
 #au-msg{font-size:14px;min-height:20px}
 .menu button:disabled{opacity:.7}
+#st{position:fixed;inset:0;background:var(--bg);color:var(--fg);z-index:12;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);box-sizing:border-box}
+#st[hidden]{display:none}
+#st-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--bd);flex:none}
+#st-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:10px 12px calc(24px + env(safe-area-inset-bottom,0px));-webkit-user-select:text;user-select:text}
+.card{border:1px solid var(--bd);border-radius:12px;padding:10px;background:var(--btn);margin:10px 0}
+.card.tap{cursor:pointer}
+.muted{opacity:.7;font-size:14px}
+.tabs{display:flex;gap:6px;margin-bottom:6px}
+.tabs button{flex:1}
+.gt{font-weight:700;margin:16px 0 4px}
+.rrow{display:flex;align-items:center;gap:8px;padding:2px 0}
+.star{font-size:28px;line-height:1;padding:3px 2px;color:#f5b301;cursor:pointer;-webkit-user-select:none;user-select:none}
+.f{margin:8px 0}
+.f label{display:block;font-size:13px;opacity:.75;margin-bottom:3px}
+.f input,.f select,.f textarea{width:100%;box-sizing:border-box;flex:none}
+textarea,select{font:inherit;font-size:16px;padding:9px;border-radius:10px;border:1px solid var(--bd);background:var(--btn);color:var(--fg);-webkit-user-select:text;user-select:text}
+.r2{display:flex;gap:6px;align-items:center}
+button.big{width:100%;padding:12px;font-weight:600;margin-top:6px}
 </style></head><body>
 <div id="bar">
 <button data-t="move" class="on" title="Двигать">✋<span class="lb"> Двигать</span></button>
@@ -54,9 +72,9 @@ input{font-size:16px}
 <button id="undo" title="Отмена">↶<span class="lb"> Отмена</span></button>
 <span class="gap"></span>
 <button id="an" class="keep">▶<span class="lb"> Анимация</span></button>
-<button id="sp" class="keep">×1</button>
+<button id="stb" title="Ученики">👥<span class="lb"> Ученики</span></button>
 <div class="dd"><button id="moreb">⋯<span class="lb"> Ещё</span></button>
-<div class="menu r" id="m-more" hidden><button id="who" disabled>👤</button><button id="mk">📐 Разметка</button><button id="cl">Стереть пути</button><button id="cr">Стереть измерения</button><button id="ca">Очистить всё</button><button id="rt">⟳ Повернуть</button><button id="pos">📁 Позиции</button><button id="lo">Выйти из кабинета</button></div></div>
+<div class="menu r" id="m-more" hidden><button id="who" disabled>👤</button><button id="mk">📐 Разметка</button><button id="sp">⏱ Скорость анимации</button><button id="cl">Стереть пути</button><button id="cr">Стереть измерения</button><button id="ca">Очистить всё</button><button id="rt">⟳ Повернуть</button><button id="pos">📁 Позиции</button><button id="lo">Выйти из кабинета</button></div></div>
 </div>
 <div id="wrap"><canvas id="cv"></canvas></div>
 <div id="pn" hidden><div id="pb">
@@ -64,6 +82,7 @@ input{font-size:16px}
 <div class="row"><input id="pname" placeholder="Название текущей позиции"><button id="psave">💾 Сохранить</button></div>
 <div id="plist"></div><div id="pmsg"></div>
 </div></div>
+<div id="st" hidden><div id="st-head"></div><div id="st-body"></div></div>
 <div id="au" hidden><div id="au-box">
 <h2 style="margin:0">🎾 Падел-доска</h2>
 <div class="urow"><button id="au-u1">Oksana</button><button id="au-u2">Evgenii</button></div>
@@ -457,7 +476,7 @@ function animView(t){
   });
   return {items:vi,moves:vm};
 }
-function setBtn(){document.getElementById('an').innerHTML=(anim?'■':'▶')+'<span class="lb"> '+(anim?'Стоп':'Анимация')+'</span>';document.getElementById('sp').innerHTML='<span class="lb">Скорость </span>×'+MULT[mi]}
+function setBtn(){document.getElementById('an').innerHTML=(anim?'■':'▶')+'<span class="lb"> '+(anim?'Стоп':'Анимация')+'</span>';document.getElementById('sp').textContent='⏱ Скорость анимации: ×'+MULT[mi]}
 function tick(){
   if(!anim)return;
   const t=(performance.now()-anim.t0)/1000;
@@ -473,7 +492,7 @@ function startAnim(){
 }
 function stopAnim(){anim=null;document.getElementById('bar').classList.remove('play');setBtn();draw()}
 document.getElementById('an').onclick=()=>{anim?stopAnim():startAnim()};
-document.getElementById('sp').onclick=()=>{mi=(mi+1)%MULT.length;setBtn();if(anim)startAnim()};
+document.getElementById('sp').onclick=()=>{mi=(mi+1)%MULT.length;setBtn();toast('Скорость анимации ×'+MULT[mi]);if(anim)startAnim()};
 function closeMenus(){document.querySelectorAll('.menu').forEach(m=>{m.hidden=true})}
 function toggleMenu(id){const m=document.getElementById(id),open=m.hidden;closeMenus();m.hidden=!open}
 document.getElementById('addb').onclick=()=>toggleMenu('m-add');
@@ -488,6 +507,243 @@ window.addEventListener('resize',resize);
 if(window.ResizeObserver)new ResizeObserver(resize).observe(wrap);
 setTimeout(resize,300);setTimeout(resize,1000);
 resize();
+// ================= Ученики =================
+const SK=[
+ {g:'tech',t:'Удары и техника',short:'Техника',items:[['serve','Подача','Подача'],['ret','Возврат подачи','Возврат'],['fh','Форхенд','Форхенд'],['bh','Бэкхенд','Бэкхенд'],['vfh','Воле справа','Воле пр.'],['vbh','Воле слева','Воле лев.'],['lob','Лоб','Лоб'],['smash','Смэш','Смэш'],['band','Бандеха','Бандеха'],['vib','Вибора','Вибора'],['glass','Игра от стекла','Стекло']]},
+ {g:'tact',t:'Тактика',short:'Тактика',items:[['pos','Позиционная игра','Позиция'],['sel','Выбор удара','Выбор'],['team','Игра в паре','Пара'],['read','Чтение игры','Чтение']]},
+ {g:'phys',t:'Физика',short:'Физика',items:[['speed','Скорость','Скорость'],['end','Выносливость','Вынослив.'],['agi','Ловкость и координация','Ловкость'],['str','Сила','Сила'],['flex','Гибкость','Гибкость'],['react','Реакция','Реакция']]},
+ {g:'psy',t:'Психология',short:'Психика',items:[['focus','Концентрация','Концентр.'],['conf','Уверенность','Уверенн.'],['emo','Контроль эмоций','Эмоции'],['disc','Дисциплина','Дисципл.']]}
+];
+const ALL=SK.flatMap(g=>g.items);
+const LEVELS=['Новичок','Начинающий','Любитель','Продвинутый','Профи'],HANDS=['Правша','Левша'],SIDES=['Универсал','Справа','Слева'];
+const stEl=document.getElementById('st'),stHead=document.getElementById('st-head'),stBody=document.getElementById('st-body');
+let stView='list',stCur=null,stTab='portrait',stDraft=null,stLast='',memSt={};
+function stReset(){stEl.hidden=true;stView='list';stCur=null;stDraft=null;stLast=''}
+function getSt(){try{const s=localStorage.getItem('padel-students-v1:'+user);return s?JSON.parse(s):(memSt[user]||[])}catch(e){return memSt[user]||[]}}
+function putSt(a){memSt[user]=a;try{localStorage.setItem('padel-students-v1:'+user,JSON.stringify(a));return true}catch(e){return false}}
+function findSt(id){return getSt().find(x=>x.id===id)||null}
+function saveSt(st){const a=getSt(),i=a.findIndex(x=>x.id===st.id);if(i>=0)a[i]=st;else a.push(st);putSt(a)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function today(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
+function fmtD(s){if(!s)return '';const a=s.split('-');return a[2]+'.'+a[1]+'.'+a[0]}
+function f1(v){return v.toFixed(1).replace('.',',')}
+function ce(tag,props,...kids){
+  const e=document.createElement(tag);
+  if(props)for(const k in props){const v=props[k];if(k==='style')e.style.cssText=v;else if(k==='text')e.textContent=v;else e[k]=v}
+  for(const c of kids.flat()){if(c==null||c===false)continue;e.appendChild(typeof c==='string'?document.createTextNode(c):c)}
+  return e;
+}
+function fld(label,input){return ce('div',{className:'f'},ce('label',{text:label}),input)}
+function selectEl(opts,val,fn){const s=ce('select');opts.forEach(o=>s.appendChild(ce('option',{value:o,text:o})));s.value=val;s.onchange=()=>fn(s.value);return s}
+function gAvg(r,items){const v=items.map(i=>r[i[0]]||0).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0}
+function overall(r){const v=SK.map(g=>gAvg(r,g.items)).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0}
+function newStudent(){return {id:uid(),name:'',age:'',level:'Любитель',hand:'Правша',side:'Универсал',goal:'',r:{},journal:[],plan:{date:'',items:[]},goals:[],history:[],created:today()}}
+function recordHistory(st){
+  if(!ALL.some(i=>st.r[i[0]]>0))return;
+  const d=today(),snap={date:d,r:Object.assign({},st.r)},i=st.history.findIndex(x=>x.date===d);
+  if(i>=0)st.history[i]=snap;else st.history.push(snap);
+  if(st.history.length>40)st.history.shift();
+}
+function prevSnap(st){return st.history.filter(x=>x.date<today()).pop()||null}
+function weakItems(st){return ALL.filter(i=>st.r[i[0]]>0&&st.r[i[0]]<=2).sort((a,b)=>st.r[a[0]]-st.r[b[0]]).slice(0,5)}
+function addGoal(st,text){
+  if(st.goals.some(g=>g.text===text))return false;
+  st.goals.push({id:uid(),text,done:false});saveSt(st);return true;
+}
+function radar(cnv,w,hh,labels,cur,prev){
+  const d=window.devicePixelRatio||1;cnv.style.width=w+'px';cnv.style.height=hh+'px';cnv.width=w*d;cnv.height=hh*d;
+  const c=cnv.getContext('2d');c.setTransform(d,0,0,d,0,0);
+  let col='#888';try{col=getComputedStyle(document.body).color||'#888'}catch(e){}
+  c.font='12px system-ui,sans-serif';const mw=Math.max(...labels.map(t=>(c.measureText(t)||{}).width||50)),n=labels.length,cx=w/2,cy=hh/2,Rr=Math.max(60,Math.min(w/2-mw-18,hh/2-30));
+  const pt=(i,v)=>{const a=-Math.PI/2+i*2*Math.PI/n;return [cx+Math.cos(a)*Rr*v/5,cy+Math.sin(a)*Rr*v/5]};
+  c.clearRect(0,0,w,hh);c.lineWidth=1;c.strokeStyle='rgba(128,128,128,0.35)';c.setLineDash([]);
+  for(let k=1;k<=5;k++){c.beginPath();for(let i=0;i<n;i++){const p=pt(i,k);i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])}c.closePath();c.stroke()}
+  for(let i=0;i<n;i++){const p=pt(i,5);c.beginPath();c.moveTo(cx,cy);c.lineTo(p[0],p[1]);c.stroke()}
+  c.font='12px system-ui,sans-serif';c.fillStyle=col;c.textBaseline='middle';
+  labels.forEach((t,i)=>{
+    const a=-Math.PI/2+i*2*Math.PI/n,x=cx+Math.cos(a)*(Rr+14),y=cy+Math.sin(a)*(Rr+14),cs=Math.cos(a);
+    c.textAlign=cs>0.3?'left':cs<-0.3?'right':'center';c.fillText(t,x,y);
+  });
+  const poly2=(vals,fill,stroke,dash,dots)=>{
+    c.beginPath();vals.forEach((v,i)=>{const p=pt(i,v);i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])});c.closePath();
+    if(fill){c.fillStyle=fill;c.fill()}
+    c.setLineDash(dash);c.strokeStyle=stroke;c.lineWidth=2;c.stroke();c.setLineDash([]);
+    if(dots){c.fillStyle=stroke;vals.forEach((v,i)=>{const p=pt(i,v);c.beginPath();c.arc(p[0],p[1],3,0,7);c.fill()})}
+  };
+  if(prev)poly2(prev,null,'rgba(150,150,150,0.95)',[5,4],false);
+  poly2(cur,'rgba(47,111,237,0.28)','#2f6fed',[],true);
+}
+function stHeader(title,backLabel,backFn,right){
+  stHead.textContent='';
+  stHead.appendChild(ce('button',{text:backLabel,onclick:backFn}));
+  const t=ce('b',{text:title,style:'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:17px'});
+  stHead.appendChild(t);if(right)stHead.appendChild(right);
+  return t;
+}
+function renderSt(){
+  const key=stView+'|'+stCur+'|'+stTab,sc=stBody.scrollTop;
+  stBody.textContent='';
+  if(stView==='list')viewList();else if(stView==='new')viewNew();else viewDetail();
+  stBody.scrollTop=(key===stLast)?sc:0;stLast=key;
+}
+function stOpen(){stEl.hidden=false;stView='list';stCur=null;stDraft=null;renderSt()}
+function viewList(){
+  stHeader('👥 Ученики','← Доска',()=>{stEl.hidden=true},ce('button',{text:'＋ Новый',onclick:()=>{stDraft=newStudent();stView='new';renderSt()}}));
+  const a=getSt().slice().sort((x,y)=>(x.name||'').localeCompare(y.name||'','ru'));
+  if(!a.length)stBody.appendChild(ce('div',{className:'muted',text:'Пока нет учеников. Нажмите «＋ Новый», чтобы создать первого.'}));
+  a.forEach(s=>{
+    const last=s.journal.map(j=>j.date).sort().pop(),ov=overall(s.r),parts=[s.level];
+    if(ov)parts.push('★ '+f1(ov));
+    parts.push(last?'Последнее занятие: '+fmtD(last):'Занятий в журнале нет');
+    if(s.plan.items.length)parts.push('План'+(s.plan.date?' на '+fmtD(s.plan.date):'')+': '+s.plan.items.length+' п.');
+    stBody.appendChild(ce('div',{className:'card tap',onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
+      ce('div',{style:'font-weight:600;font-size:17px',text:s.name||'Без имени'}),ce('div',{className:'muted',text:parts.join(' · ')})));
+  });
+}
+function infoCard(st,isNew,onName){
+  const sv=()=>{if(!isNew)saveSt(st)};
+  const name=ce('input',{type:'text',value:st.name,placeholder:'Имя и фамилия',oninput:()=>{st.name=name.value;if(onName)onName(name.value.trim());sv()}});
+  const age=ce('input',{type:'number',value:st.age,placeholder:'Возраст',oninput:()=>{st.age=age.value;sv()}});
+  const goal=ce('textarea',{rows:2,value:st.goal,placeholder:'Цель ученика, особенности, травмы, пожелания…',oninput:()=>{st.goal=goal.value;sv()}});
+  return ce('div',{className:'card'},fld('Имя',name),fld('Возраст',age),
+    fld('Уровень',selectEl(LEVELS,st.level,v=>{st.level=v;sv()})),
+    fld('Ведущая рука',selectEl(HANDS,st.hand,v=>{st.hand=v;sv()})),
+    fld('Позиция на корте',selectEl(SIDES,st.side,v=>{st.side=v;sv()})),
+    fld('Цель и заметки',goal));
+}
+function ratingsEditor(st,onChange){
+  const wrap=ce('div');
+  for(const g of SK){
+    wrap.appendChild(ce('div',{className:'gt',text:g.t}));
+    for(const it of g.items){
+      const spans=[],paint=()=>spans.forEach((sp,i)=>{sp.textContent=(st.r[it[0]]||0)>i?'★':'☆'});
+      const stars=ce('div',{className:'stars'});
+      for(let i=1;i<=5;i++){const sp=ce('span',{className:'star',onclick:()=>{st.r[it[0]]=(st.r[it[0]]===i)?0:i;paint();onChange()}});spans.push(sp);stars.appendChild(sp)}
+      paint();
+      wrap.appendChild(ce('div',{className:'rrow'},ce('div',{style:'flex:1',text:it[1]}),stars));
+    }
+  }
+  return wrap;
+}
+function viewNew(){
+  const st=stDraft;
+  stHeader('Новый ученик','← Отмена',()=>{stView='list';stDraft=null;renderSt()});
+  stBody.appendChild(infoCard(st,true));
+  stBody.appendChild(ce('div',{className:'gt',text:'Характеристики игрока (нажмите на звёзды; повторное нажатие сбрасывает оценку)'}));
+  stBody.appendChild(ratingsEditor(st,()=>{}));
+  stBody.appendChild(ce('button',{className:'big',text:'Создать ученика',onclick:()=>{
+    const nm=(st.name||'').trim();if(!nm){toast('Впишите имя ученика.');return}
+    st.name=nm;recordHistory(st);saveSt(st);stCur=st.id;stTab='portrait';stView='detail';stDraft=null;renderSt();
+  }}));
+}
+function analytics(st){
+  const box=ce('div'),r=st.r,rated=ALL.filter(i=>r[i[0]]>0).length,ov=overall(r),prev=prevSnap(st);
+  box.appendChild(ce('div',{className:'card'},
+    ce('div',{style:'font-size:18px;font-weight:700',text:ov?('Общий уровень: '+f1(ov)+' из 5'):'Оценки пока не проставлены'}),
+    ce('div',{className:'muted',text:'Оценено показателей: '+rated+' из '+ALL.length}),
+    SK.map(g=>{const v=gAvg(r,g.items);return ce('div',{className:'muted',text:g.t+': '+(v?f1(v):'—')})})));
+  const charts=[{t:'Общий портрет',labels:SK.map(g=>g.short),cur:SK.map(g=>gAvg(r,g.items)),prev:prev&&SK.map(g=>gAvg(prev.r,g.items))}];
+  [['Техника (удары)',SK[0].items],['Физика',SK[2].items],['Тактика и психология',SK[1].items.concat(SK[3].items)]].forEach(x=>{
+    charts.push({t:x[0],labels:x[1].map(i=>i[2]),cur:x[1].map(i=>r[i[0]]||0),prev:prev&&x[1].map(i=>prev.r[i[0]]||0)});
+  });
+  const cw=Math.max(240,Math.min(380,(stBody.clientWidth||360)-24));
+  charts.forEach(c=>{
+    const cnv=ce('canvas');radar(cnv,cw,cw,c.labels,c.cur,c.prev);
+    box.appendChild(ce('div',{className:'card',style:'text-align:center'},ce('div',{className:'gt',style:'margin:0 0 6px',text:c.t}),cnv,
+      prev?ce('div',{className:'muted',text:'Сплошная линия — сейчас, пунктир — '+fmtD(prev.date)}):null));
+  });
+  const strong=ALL.filter(i=>r[i[0]]>=4).sort((a,b)=>r[b[0]]-r[a[0]]).slice(0,5),weak=weakItems(st);
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'💪 Сильные стороны'}),
+    strong.length?strong.map(i=>ce('div',{text:'★'.repeat(r[i[0]])+' '+i[1]})):ce('div',{className:'muted',text:'Пока нет показателей на 4–5 звёзд.'})));
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Зоны роста (оценка 1–2)'}),
+    weak.length?weak.map(i=>ce('div',{className:'r2',style:'justify-content:space-between;margin:4px 0'},ce('span',{text:'★'.repeat(r[i[0]])+' '+i[1]}),
+      ce('button',{text:'＋ В цели',onclick:()=>{toast(addGoal(st,'Улучшить: '+i[1])?'Добавлено в цели ученика.':'Эта цель уже есть.')}}))):ce('div',{className:'muted',text:'Нет слабых мест среди оценённых показателей.'})));
+  return box;
+}
+function tabPortrait(st,box,tEl){
+  box.appendChild(infoCard(st,false,v=>{tEl.textContent=v||'Ученик'}));
+  const an=ce('div'),drawAn=()=>{an.textContent='';an.appendChild(analytics(st))};
+  box.appendChild(an);
+  box.appendChild(ce('div',{className:'gt',text:'Оценки (нажмите на звёзды; повторное нажатие сбрасывает)'}));
+  box.appendChild(ratingsEditor(st,()=>{recordHistory(st);saveSt(st);drawAn()}));
+  drawAn();
+}
+function entryCard(st,e){
+  const card=ce('div',{className:'card'});
+  const show=()=>{
+    card.textContent='';
+    const del=ce('button');twoStep(del,'✕',()=>{st.journal=st.journal.filter(x=>x.id!==e.id);saveSt(st);renderSt()});
+    card.appendChild(ce('div',{className:'r2',style:'justify-content:space-between'},ce('b',{text:fmtD(e.date)}),ce('span',{},ce('button',{text:'✎',onclick:edit}),del)));
+    card.appendChild(ce('div',{style:'white-space:pre-wrap;margin-top:6px',text:e.text}));
+  };
+  const edit=()=>{
+    card.textContent='';
+    const d2=ce('input',{type:'date',value:e.date}),t2=ce('textarea',{rows:5,value:e.text});
+    card.appendChild(fld('Дата',d2));card.appendChild(fld('Текст',t2));
+    card.appendChild(ce('div',{className:'r2'},
+      ce('button',{text:'Сохранить',onclick:()=>{const t=t2.value.trim();if(!t)return;e.date=d2.value||e.date;e.text=t;saveSt(st);renderSt()}}),
+      ce('button',{text:'Отмена',onclick:show})));
+  };
+  show();return card;
+}
+function tabJournal(st,box){
+  const dIn=ce('input',{type:'date',value:today()}),tx=ce('textarea',{rows:4,placeholder:'Что тренировали на занятии, что получилось, что нет, как отреагировал ученик…'});
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'Новая запись о занятии'}),
+    fld('Дата занятия',dIn),fld('Что делали',tx),
+    ce('button',{className:'big',text:'Добавить в журнал',onclick:()=>{
+      const t=tx.value.trim();if(!t){toast('Впишите, что тренировали.');return}
+      st.journal.push({id:uid(),date:dIn.value||today(),text:t});saveSt(st);renderSt();
+    }})));
+  const list=st.journal.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  if(!list.length)box.appendChild(ce('div',{className:'muted',text:'Записей пока нет. Добавьте первую, чтобы вести историю занятий.'}));
+  list.forEach(e=>box.appendChild(entryCard(st,e)));
+}
+function listEditor(st,arr,ph){
+  const box=ce('div'),inp=ce('input',{type:'text',placeholder:ph});
+  const add=()=>{const t=inp.value.trim();if(!t)return;arr.push({id:uid(),text:t,done:false});saveSt(st);draw();inp.value='';inp.focus()};
+  inp.onkeydown=e=>{if(e.key==='Enter')add()};
+  const draw=()=>{
+    box.textContent='';
+    arr.forEach(it=>{
+      const del=ce('button');twoStep(del,'✕',()=>{const i=arr.indexOf(it);if(i>=0)arr.splice(i,1);saveSt(st);draw()});
+      box.appendChild(ce('div',{className:'r2',style:'margin:4px 0'},
+        ce('button',{text:it.done?'☑':'☐',onclick:()=>{it.done=!it.done;saveSt(st);draw()}}),
+        ce('div',{style:'flex:1;white-space:pre-wrap'+(it.done?';text-decoration:line-through;opacity:.6':''),text:it.text}),del));
+    });
+    box.appendChild(ce('div',{className:'r2',style:'margin-top:8px'},inp,ce('button',{text:'＋',onclick:add})));
+  };
+  draw();return box;
+}
+function tabPlan(st,box){
+  const pl=st.plan;
+  const dIn=ce('input',{type:'date',value:pl.date||'',oninput:()=>{pl.date=dIn.value;saveSt(st)}});
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'📅 Следующая тренировка'}),
+    fld('Дата (необязательно)',dIn),listEditor(st,pl.items,'Что будем проходить…'),
+    ce('button',{className:'big',style:'margin-top:10px',text:'✅ Занятие проведено — перенести в журнал',onclick:()=>{
+      if(!pl.items.length){toast('В плане пока пусто.');return}
+      st.journal.push({id:uid(),date:pl.date||today(),text:pl.items.map(i=>'• '+i.text).join('\n')});
+      pl.items=[];pl.date='';saveSt(st);toast('План перенесён в журнал.');stTab='journal';renderSt();
+    }})));
+  const wk=weakItems(st).filter(i=>!st.goals.some(g=>g.text==='Улучшить: '+i[1]));
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Над чем работаем (цели)'}),
+    listEditor(st,st.goals,'Что нужно улучшить…'),
+    wk.length?ce('div',{style:'margin-top:10px'},ce('div',{className:'muted',text:'Предложения по слабым местам:'}),
+      wk.map(i=>ce('button',{style:'margin:4px 4px 0 0',text:'＋ '+i[1],onclick:()=>{addGoal(st,'Улучшить: '+i[1]);renderSt()}}))):null));
+}
+function viewDetail(){
+  const st=findSt(stCur);
+  if(!st){stView='list';viewList();return}
+  const del=ce('button');
+  twoStep(del,'🗑',()=>{putSt(getSt().filter(x=>x.id!==st.id));stView='list';stCur=null;renderSt()});
+  const tEl=stHeader(st.name||'Ученик','← Ученики',()=>{stView='list';renderSt()},del);
+  const tabs=ce('div',{className:'tabs'});
+  [['portrait','Портрет'],['journal','Журнал ('+st.journal.length+')'],['plan','План']].forEach(x=>tabs.appendChild(ce('button',{text:x[1],className:stTab===x[0]?'on':'',onclick:()=>{stTab=x[0];renderSt()}})));
+  stBody.appendChild(tabs);
+  const box=ce('div');stBody.appendChild(box);
+  if(stTab==='portrait')tabPortrait(st,box,tEl);else if(stTab==='journal')tabJournal(st,box);else tabPlan(st,box);
+}
+document.getElementById('stb').onclick=()=>{closeMenus();stOpen()};
+
 const NAMES=['Oksana','Evgenii'];
 let memUsers={},sel=null;
 function getUsers(){try{return JSON.parse(localStorage.getItem('padel-users-v1')||'{}')}catch(e){return memUsers}}
@@ -520,7 +776,7 @@ function login(n){
   user=n;mem=null;
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
-  items=[];moves=[];hist=[];drag=null;setTool('move');
+  items=[];moves=[];hist=[];drag=null;setTool('move');stReset();
   document.getElementById('who').textContent='👤 '+n;
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
@@ -529,7 +785,7 @@ function login(n){
 function logout(){
   if(anim)stopAnim();
   try{localStorage.removeItem('padel-session-v1')}catch(e){}
-  user=null;mem=null;sel=null;items=[];moves=[];hist=[];drag=null;
+  user=null;mem=null;sel=null;items=[];moves=[];hist=[];drag=null;stReset();
   document.getElementById('au-u1').classList.remove('on');document.getElementById('au-u2').classList.remove('on');
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au-pw2').hidden=true;document.getElementById('au-go').textContent='Продолжить';
