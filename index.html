@@ -81,7 +81,7 @@ button.big{width:100%;padding:12px;font-weight:600;margin-top:6px}
 <button id="an" class="keep">▶<span class="lb"> Анимация</span></button>
 <button id="stb" title="Ученики">👥<span class="lb"> Ученики</span></button>
 <div class="dd"><button id="moreb">⋯<span class="lb"> Ещё</span></button>
-<div class="menu r" id="m-more" hidden><button id="who" disabled>👤</button><button id="mk">📐 Разметка</button><button id="sp">⏱ Скорость анимации</button><button id="cl">Стереть пути</button><button id="cr">Стереть измерения</button><button id="ca">Очистить всё</button><button id="rt">⟳ Повернуть</button><button id="pos">📁 Позиции</button><button id="lo">Выйти из кабинета</button></div></div>
+<div class="menu r" id="m-more" hidden><button id="who" disabled>👤</button><button id="mk">📐 Разметка</button><button id="sp">⏱ Скорость анимации</button><button id="cl">Стереть пути</button><button id="cr">Стереть измерения</button><button id="ca">Очистить всё</button><button id="rt">⟳ Повернуть</button><button id="pos">📁 Позиции</button><button id="bk">💾 Копия данных</button><button id="lo">Выйти из кабинета</button></div></div>
 </div>
 <div id="wrap"><canvas id="cv"></canvas></div>
 <div id="pn" hidden><div id="pb">
@@ -1334,6 +1334,66 @@ document.getElementById('stb').onclick=()=>{closeMenus();stOpen()};
 
 const NAMES=['Oksana','Evgenii'];
 let memUsers={},sel=null;
+
+// ===== Резервная копия данных кабинета =====
+async function backupSave(){
+  try{
+    const data={app:'padel-board',v:1,date:new Date().toISOString(),cabinet:user,positions:getAll(),students:getSt(),coach:getCoach()};
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'}),name='padel-copy-'+(user||'cabinet')+'-'+today()+'.json';
+    let f=null;try{f=new File([blob],name,{type:'application/json'})}catch(e){}
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){
+      try{await navigator.share({files:[f],title:name});toast('Копия готова.');return}catch(e){if(e&&e.name==='AbortError')return}
+    }
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{try{a.remove();URL.revokeObjectURL(url)}catch(e){}},5000);
+    toast('Копия сохранена в файл '+name);
+  }catch(e){toast('Не удалось сохранить копию: '+(e&&e.message||e))}
+}
+function backupApply(d,replace){
+  let np=0,ns=0;
+  const ps=Array.isArray(d.positions)?d.positions:[],sts=Array.isArray(d.students)?d.students:[],co=(d.coach&&typeof d.coach==='object')?d.coach:{};
+  if(replace){putAll(ps);putSt(sts);putCoach(co);np=ps.length;ns=sts.length}
+  else{
+    const ap=getAll(),ids=new Set(ap.map(p=>p.id));
+    ps.forEach(p=>{if(p&&!ids.has(p.id)){ap.push(p);np++}});putAll(ap);
+    const as=getSt(),sid=new Set(as.map(x=>x.id));
+    sts.forEach(x=>{if(x&&!sid.has(x.id)){as.push(x);ns++}});putSt(as);
+    const cur=getCoach();Object.keys(co).forEach(k=>{if(!cur[k]&&co[k])cur[k]=co[k]});putCoach(cur);
+  }
+  return {np,ns};
+}
+function backupMenu(){
+  openModal((bx,close)=>{
+    bx.appendChild(ce('div',{style:'font-weight:700;font-size:17px;margin-bottom:6px',text:'💾 Копия данных кабинета'}));
+    bx.appendChild(ce('div',{className:'muted',text:'В копию входят ученики, сохранённые позиции и данные тренера этого кабинета ('+(user||'')+'). Пароли в файл не попадают.'}));
+    bx.appendChild(ce('button',{className:'big',style:'margin-top:10px',text:'Сохранить копию в файл',onclick:()=>{backupSave()}}));
+    const msg=ce('div',{className:'muted',style:'margin-top:8px'});
+    const inp=ce('input',{type:'file',accept:'.json,application/json',style:'display:none'});
+    inp.onchange=()=>{
+      const f=inp.files&&inp.files[0];if(!f)return;
+      const rd=new FileReader();
+      rd.onload=()=>{
+        let d=null;try{d=JSON.parse(rd.result)}catch(e){}
+        if(!d||d.app!=='padel-board'){msg.textContent='Это не файл копии падел-доски.';return}
+        msg.textContent='';
+        const np=(d.positions||[]).length,ns=(d.students||[]).length;
+        bx.textContent='';
+        bx.appendChild(ce('div',{style:'font-weight:700;font-size:17px;margin-bottom:6px',text:'Загрузить копию'}));
+        bx.appendChild(ce('div',{text:'В файле: учеников — '+ns+', позиций — '+np+(d.cabinet?' (кабинет '+d.cabinet+')':'')+'.'}));
+        bx.appendChild(ce('button',{className:'big',style:'margin-top:10px',text:'Добавить к текущим (ничего не удаляется)',onclick:()=>{const r=backupApply(d,false);close();toast('Добавлено: учеников — '+r.ns+', позиций — '+r.np+'.')}}));
+        const rp=ce('button',{style:'margin-top:8px'});twoStep(rp,'Заменить текущие данные',()=>{const r=backupApply(d,true);close();toast('Загружено: учеников — '+r.ns+', позиций — '+r.np+'.')});
+        bx.appendChild(rp);
+        bx.appendChild(ce('button',{style:'margin-top:8px',text:'Отмена',onclick:close}));
+      };
+      rd.onerror=()=>{msg.textContent='Не удалось прочитать файл.'};
+      rd.readAsText(f);
+    };
+    bx.appendChild(ce('button',{style:'margin-top:8px',text:'Загрузить копию из файла',onclick:()=>inp.click()}));
+    bx.appendChild(inp);bx.appendChild(msg);
+    bx.appendChild(ce('button',{style:'margin-top:8px',text:'Закрыть',onclick:close}));
+  });
+}
+document.getElementById('bk').onclick=backupMenu;
 function getUsers(){try{return JSON.parse(localStorage.getItem('padel-users-v1')||'{}')}catch(e){return memUsers}}
 function saveUsers(u){memUsers=u;try{localStorage.setItem('padel-users-v1',JSON.stringify(u))}catch(e){}}
 async function hashPw(n,p){
