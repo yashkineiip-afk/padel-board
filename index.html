@@ -1425,7 +1425,7 @@ function login(n){
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
   items=[];moves=[];hist=[];drag=null;setTool('move');stReset();
-  document.getElementById('who').textContent='👤 '+n;
+  document.getElementById('who').textContent='👤 '+n+' · версия 15.11-б';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au').hidden=true;draw();
