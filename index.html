@@ -85,7 +85,7 @@ button.big{width:100%;padding:12px;font-weight:600;margin-top:6px}
 <span class="gap"></span>
 <button id="b3d" class="keep" title="3D режим">🧊<span class="lb"> 3D</span></button>
 <button id="an" class="keep">▶<span class="lb"> Анимация</span></button>
-<button id="stb" title="Ученики">👥<span class="lb"> Ученики</span></button>
+<button id="stb" title="Ученики">👥<span class="lb"> Ученики</span><span id="stbadge" style="display:none;background:#ff4d5a;color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
 <div class="dd"><button id="moreb">⋯<span class="lb"> Ещё</span></button>
 <div class="menu r" id="m-more" hidden><button id="who" disabled>👤</button><button id="mk">📐 Разметка</button><button id="sp">⏱ Скорость анимации</button><button id="cl">Стереть пути</button><button id="cr">Стереть измерения</button><button id="ca">Очистить всё</button><button id="rt">⟳ Повернуть</button><button id="pos">📁 Позиции</button><button id="bk">💾 Копия данных</button><button id="lo">Выйти из кабинета</button></div></div>
 </div>
@@ -907,7 +907,7 @@ const stEl=document.getElementById('st'),stHead=document.getElementById('st-head
 let stListTab='students',stView='list',stCur=null,stTab='portrait',stDraft=null,stLast='',memSt={};
 function stReset(){stListTab='students';stEl.hidden=true;stView='list';stCur=null;stDraft=null;stLast=''}
 function getSt(){try{const s=localStorage.getItem('padel-students-v1:'+user);return s?JSON.parse(s):(memSt[user]||[])}catch(e){return memSt[user]||[]}}
-function putSt(a){memSt[user]=a;try{localStorage.setItem('padel-students-v1:'+user,JSON.stringify(a));return true}catch(e){return false}}
+function putSt(a){memSt[user]=a;let ok=false;try{localStorage.setItem('padel-students-v1:'+user,JSON.stringify(a));ok=true}catch(e){}try{stBadge()}catch(e){}return ok}
 function findSt(id){return getSt().find(x=>x.id===id)||null}
 function saveSt(st){const a=getSt(),i=a.findIndex(x=>x.id===st.id);if(i>=0)a[i]=st;else a.push(st);putSt(a)}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -989,14 +989,20 @@ function viewList(){
   [['students','Ученики ('+a.length+')'],['coach','Данные тренера']].forEach(x=>lt.appendChild(ce('button',{text:x[1],className:stListTab===x[0]?'on':'',onclick:()=>{stListTab=x[0];renderSt()}})));
   stBody.appendChild(lt);
   if(stListTab==='coach'){stBody.appendChild(ce('div',{className:'muted',text:'Эти данные печатаются в PDF для ученика: имя, контакты и клуб тренера.'}));stBody.appendChild(coachCard());return}
+  const reds=a.map(s=>({s,A:stAlerts(s)})).filter(x=>alWorst(x.A)==='red');
+  if(reds.length){const bc=ce('div',{className:'card',style:'border-color:'+AL_COL.red},ce('div',{className:'gt',style:'margin:0 0 6px;color:'+AL_COL.red,text:'🔔 Требуют внимания: '+reds.length}));
+    reds.forEach(x=>{const f=x.A.filter(q=>q.lvl==='red')[0];bc.appendChild(ce('div',{style:'margin:5px 0;cursor:pointer',onclick:()=>{stCur=x.s.id;stTab=f.tab;stView='detail';renderSt()}},ce('b',{text:(x.s.name||'Без имени')+': '}),ce('span',{text:f.text})))});
+    stBody.appendChild(bc)}
   if(!a.length)stBody.appendChild(ce('div',{className:'muted',text:'Пока нет учеников. Нажмите «＋ Новый», чтобы создать первого.'}));
   a.forEach((s,ix)=>{
     const last=s.journal.map(j=>j.date).sort().pop(),ov=overall(s.r),parts=[s.level];
     parts.push('Уровень '+fl25(ov));
     parts.push(last?'Последнее занятие: '+fmtD(last):'Занятий в журнале нет');
     if(s.plan.items.length)parts.push('План'+(s.plan.date?' на '+fmtD(s.plan.date):'')+': '+s.plan.items.length+' п.');
-    stBody.appendChild(ce('div',{className:'card tap'+(ix%2?' alt':''),onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
-      ce('div',{style:'font-weight:600;font-size:17px',text:s.name||'Без имени'}),ce('div',{className:'muted',text:parts.join(' · ')})));
+    const AL=stAlerts(s),wl=alWorst(AL),rs=AL.filter(q=>q.lvl==='red').slice(0,2);
+    stBody.appendChild(ce('div',{className:'card tap'+(ix%2?' alt':''),style:'border-left:5px solid '+AL_COL[wl],onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
+      ce('div',{style:'font-weight:600;font-size:17px'},alertDot(wl),s.name||'Без имени'),ce('div',{className:'muted',text:parts.join(' · ')}),
+      rs.map(q=>ce('div',{style:'color:'+AL_COL.red+';font-size:14px;margin-top:3px',text:'● '+q.text}))));
   });
 }
 function infoCard(st,isNew,onName){
@@ -1198,8 +1204,10 @@ function viewDetail(){
   const pdfB=ce('button',{text:'📄 PDF',onclick:()=>exportPdf(st)});
   const tEl=stHeader(st.name||'Ученик','← Ученики',()=>{stView='list';renderSt()},ce('span',{style:'display:flex;gap:6px'},pdfB,del));
   const tabs=ce('div',{className:'tabs'});
-  [['portrait','Портрет'],['journal','Журнал ('+st.journal.length+')'],['plan','План'],['strat','Стратегия']].forEach(x=>tabs.appendChild(ce('button',{text:x[1],className:stTab===x[0]?'on':'',onclick:()=>{stTab=x[0];renderSt()}})));
+  const ALs=stAlerts(st),tl=k=>{const a=ALs.filter(q=>q.tab===k&&q.lvl!=='green');return a.length?a.some(q=>q.lvl==='red')?'red':'amber':''};
+  [['portrait','Портрет'],['journal','Журнал ('+st.journal.length+')'],['plan','План'],['strat','Стратегия']].forEach(x=>{const d=tl(x[0]);tabs.appendChild(ce('button',{className:stTab===x[0]?'on':'',onclick:()=>{stTab=x[0];renderSt()}},x[1],d?ce('span',{style:'color:'+AL_COL[d]+';margin-left:3px',text:'●'}):null))});
   stBody.appendChild(tabs);
+  stBody.appendChild(alertsCard(st,true));
   const box=ce('div');stBody.appendChild(box);
   if(stTab==='portrait')tabPortrait(st,box,tEl);else if(stTab==='journal')tabJournal(st,box);else if(stTab==='strat')tabStrat(st,box);else tabPlan(st,box);
 }
@@ -1297,6 +1305,85 @@ const STR_TIPS_KID=['Игровой формат: мини-розыгрыши п
 const STR_SRC_KID=['ВОЗ, рекомендации для детей и подростков 5–17 лет: в среднем не меньше 60 мин в день умеренной и высокой активности; нагрузка на силу и кости не менее 3 дней в неделю (who.int).','Руководство по детским программам падел (How to Start a Junior Padel Program, padelusa.org): занятие 60 мин, 90 мин слишком много для начинающих и детей до 12 лет, мини-розыгрыши, группы 4–8, продвижение по умению, первый турнир — вместе с другом.','Инвентарь и категории по возрасту, роль родителей (Padel for Kids, padel-rules.pages.dev).','Сон 9–12 часов для 6–12 лет и 8–10 часов для 13–18 лет (консенсус Американской академии медицины сна, AASM, 2016).'];
 const STR_PHASES=[['Неделя 1','Диагностика: проставить оценки, выбрать 2–3 цели цикла.'],['Недели 2–4','База: техника по зонам роста и физическая основа.'],['Недели 5–7','Игра: тактика, розыгрыши, контрольные игры или турнир.'],['Неделя 8','Переоценка: сравнить портрет «было/стало», поставить цели нового цикла.']];
 const STR_SRC=['ВОЗ, рекомендации по физической активности для взрослых: 150–300 мин умеренной аэробной нагрузки в неделю и силовые упражнения не менее 2 дней в неделю (who.int).','Структура цикла «техника → тактика → игры» и пересмотр плана через 8 недель; 3–4 занятия на корте по 75–90 мин плюс 2 внекортовые тренировки по 30–45 мин (8-Week Padel Training Plan for Intermediate Players, padel-rules.pages.dev).','Верхний ориентир для цели «5 уровень»: 3 занятия с тренером, 2 товарищеские игры в неделю, 1 турнир в 1–2 месяца (пример режима, J. Galea, jeangalea.com).'];
+// ===== Статусы и напоминания =====
+const AL_COL={red:'#ff4d5a',amber:'#ffb020',green:'#7bd63a'};
+function dayDiff(a,b){return Math.round((pD(b)-pD(a))/86400000)}
+function weekStartOf(d){const wd=(pD(d).getDay()+6)%7;return addDays(d,-wd)}
+function tournInt(p){
+  let d=p.kid?({'6–8 лет':90,'9–10 лет':45,'11–13 лет':30}[p.band]||45):({A:120,B:60,C:30,D:30,E:15}[p.band]||60);
+  if(p.focus==='fun')d=Math.max(d*2,60);
+  if(p.focus==='comp'&&!(p.kid&&p.band==='6–8 лет'))d=Math.round(d*0.7);
+  return d;
+}
+function stAlerts(st){
+  const A=[],t=today(),sp=st.strat||{},p=stratPlan(st),ord={red:0,amber:1,green:2};
+  const add=(lvl,tab,text,s)=>A.push({lvl,tab,text,s:s||text,pdf:!!s});
+  const rated=ALL.some(i=>(st.r[i[0]]||0)>0);
+  if(!rated)add('red','portrait','Оценки не проставлены — проведите диагностику (0 звёзд = навык не освоен)');
+  // цикл
+  const end=sp.cycle?addDays(sp.cycle,56):'';
+  if(!sp.cycle)add(rated?'red':'amber','strat','Цикл не начат — начните 8-недельный цикл','Новый цикл развития ещё не начат');
+  else{
+    const done=(st.history||[]).some(h=>h.date>=addDays(sp.cycle,49)),over=dayDiff(end,t);
+    if(done){
+      if(over>=0)add(over>7?'red':'amber','strat','Переоценка проведена, цикл завершён — начните новый цикл','Цикл завершён, переоценка проведена. Ждём новый цикл');
+      else add('green','strat','Переоценка проведена','Переоценка навыков проведена');
+    }else if(p.wk>8)add('red','strat','Переоценка просрочена на '+over+' дн. (нужно было до '+fmtD(end)+')','Переоценка навыков просрочена на '+over+' дн. — договоритесь с тренером');
+    else if(p.wk===8)add('amber','strat','Неделя 8 — проведите переоценку до '+fmtD(end),'Неделя 8: переоценка навыков до '+fmtD(end));
+    else if(p.wk===7)add('amber','strat','Через неделю переоценка (до '+fmtD(end)+')','Скоро переоценка навыков (до '+fmtD(end)+')');
+    else add('green','strat','Цикл: неделя '+p.wk+' из 8, переоценка до '+fmtD(end),'Цикл: неделя '+p.wk+' из 8, переоценка до '+fmtD(end));
+  }
+  // занятия
+  const jd=(st.journal||[]).map(j=>j.date).sort(),last=jd[jd.length-1];
+  if(!last)add('red','journal','В журнале нет занятий','Занятий в журнале пока нет');
+  else{const g=dayDiff(last,t);
+    if(g>14)add('red','journal','Нет занятий '+g+' дн. (последнее '+fmtD(last)+')','Нет занятий '+g+' дн. (последнее '+fmtD(last)+')');
+    else if(g>7)add('amber','journal','Занятий не было '+g+' дн. (последнее '+fmtD(last)+')','Занятий не было '+g+' дн.');
+    else add('green','journal','Последнее занятие '+fmtD(last),'Последнее занятие '+fmtD(last));
+  }
+  const exp=Math.max(0,(p.rows.find(x=>x.k==='tech')||{n:0}).n+(p.rows.find(x=>x.k==='game')||{n:0}).n);
+  if(exp>0){
+    const ws=weekStartOf(t),dn=jd.filter(d=>d>=ws&&d<=t).length,wd=(pD(t).getDay()+6)%7;
+    if(dn>=exp)add('green','journal','На этой неделе занятий: '+dn+' из '+exp,'Занятий на этой неделе: '+dn+' из '+exp);
+    else add(wd>=3?'red':'amber','journal','На этой неделе занятий: '+dn+' из '+exp+' (по стратегии)','Занятий на этой неделе: '+dn+' из '+exp);
+  }
+  // план
+  const pl=st.plan||{items:[]},und=pl.items.filter(i=>!i.done).length;
+  if(!pl.items.length)add('amber','plan','План ближайшей тренировки пуст');
+  else if(pl.date&&pl.date<t&&und>0)add('red','plan','План на '+fmtD(pl.date)+' не выполнен: '+und+' п. (отметьте сделанное или перенесите в журнал)','План занятия на '+fmtD(pl.date)+': не выполнено '+und+' п.');
+  else if(pl.date&&pl.date>=t&&dayDiff(t,pl.date)<=1)add('amber','plan','Занятие '+fmtD(pl.date)+': в плане '+und+' п.','Ближайшее занятие '+fmtD(pl.date));
+  else add('green','plan','В плане '+und+' п. к выполнению'+(pl.date?' (на '+fmtD(pl.date)+')':''),'В плане к выполнению: '+und+' п.'+(pl.date?' (на '+fmtD(pl.date)+')':''));
+  // цели
+  const gl=st.goals||[],open=gl.filter(g=>!g.done).length;
+  if(!gl.length&&weakItems(st).length)add('amber','plan','Нет целей — добавьте из зон роста');
+  else if(gl.length&&!open)add('amber','plan','Все цели выполнены — поставьте новые','Все цели выполнены — молодец! Ждём новые цели');
+  else if(gl.length)add('green','plan','Целей в работе: '+open+' из '+gl.length,'Целей в работе: '+open+' из '+gl.length);
+  // турниры
+  const ti=tournInt(p),td=(st.tours||[]).map(x=>x.date).sort(),tl=td[td.length-1],noNeed=(!p.kid&&p.band==='A')||(p.kid&&p.band==='6–8 лет');
+  if(tl){const g=dayDiff(tl,t);
+    if(g>ti*2)add('amber','strat','Давно не было турнира: '+g+' дн. (по стратегии раз в ~'+ti+' дн.)','Давно не было турнира или игрового старта: '+g+' дн.');
+    else if(g>ti)add('amber','strat','Пора на турнир: прошло '+g+' дн. (по стратегии раз в ~'+ti+' дн.)','Пора на турнир или игровой старт (последний '+fmtD(tl)+')');
+    else add('green','strat','Последний турнир '+fmtD(tl),'Последний турнир '+fmtD(tl));
+  }else if(!noNeed&&sp.cycle&&dayDiff(sp.cycle,t)>ti)add('amber','strat','Турнир ещё не отмечен (по стратегии раз в ~'+ti+' дн.)','Турнир или игровой старт пока не отмечен');
+  A.sort((a,b)=>ord[a.lvl]-ord[b.lvl]);
+  return A;
+}
+function alWorst(A){return A.some(a=>a.lvl==='red')?'red':A.some(a=>a.lvl==='amber')?'amber':'green'}
+function alertDot(lvl){return ce('span',{style:'color:'+AL_COL[lvl]+';margin-right:6px',text:'●'})}
+function alertsCard(st,small){
+  const A=stAlerts(st),todo=A.filter(a=>a.lvl!=='green'),ok=A.filter(a=>a.lvl==='green'),w=alWorst(A);
+  const card=ce('div',{className:'card',style:'border-color:'+AL_COL[w]});
+  card.appendChild(ce('div',{className:'gt',style:'margin:0 0 6px',text:w==='red'?'🔔 Что нужно сделать':w==='amber'?'🔔 Скоро':'✅ Всё по графику'}));
+  todo.forEach(a=>card.appendChild(ce('div',{style:'margin:4px 0;cursor:pointer',onclick:()=>{stTab=a.tab;renderSt()}},alertDot(a.lvl),ce('span',{style:a.lvl==='red'?'color:'+AL_COL.red+';font-weight:600':'',text:a.text}))));
+  if(!small)ok.forEach(a=>card.appendChild(ce('div',{className:'muted',style:'margin:3px 0'},alertDot('green'),a.text)));
+  else if(ok.length)card.appendChild(ce('div',{className:'muted',text:'В порядке: '+ok.length+' п.'}));
+  return card;
+}
+function stBadge(){
+  const b=document.getElementById('stbadge');if(!b||!user)return;
+  let n=0;try{n=getSt().filter(s=>alWorst(stAlerts(s))==='red').length}catch(e){}
+  b.textContent=n?String(n):'';b.style.display=n?'inline-block':'none';
+}
 function drillText(it,kid,rt){
   const g=SK.find(x=>x.items===undefined?false:x.items.some(i=>i[0]===it[0]));const gk=g?g.g:'tech';
   if(rt===0&&gk==='tech')return kid?'Знакомство в игре: '+it[1]+' — показ и первые попытки в мини-играх (15 мин)':'Знакомство: '+it[1]+' — объяснение, показ и первые повторения (15 мин)';
@@ -1368,6 +1455,14 @@ function tabStrat(st,box){
   wc.appendChild(ce('div',{style:'margin-top:8px;font-weight:600',text:'Итого около '+p.total+' мин в неделю'+(p.total>=150?' — выполняет ориентир ВОЗ (150+ мин)':' — меньше ориентира ВОЗ 150 мин')}));
   if(Object.keys(sp.ov).length)wc.appendChild(ce('button',{style:'margin-top:8px',text:'Сбросить к рекомендации',onclick:()=>{sp.ov={};sv();renderSt()}}));
   box.appendChild(wc);
+  {const tc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🏆 Турниры и игровые старты'}));
+    if(!st.tours)st.tours=[];
+    tc.appendChild(ce('div',{className:'muted',text:'По стратегии: примерно раз в '+tournInt(p)+' дн. Отмечайте, когда ученик сыграл турнир или игровой старт — напоминания считаются от последней даты.'}));
+    st.tours.slice().sort((a,b2)=>b2.date.localeCompare(a.date)).forEach(x=>{const del=ce('button');twoStep(del,'✕',()=>{st.tours=st.tours.filter(q=>q.id!==x.id);sv();renderSt()});tc.appendChild(ce('div',{className:'r2',style:'justify-content:space-between;margin:4px 0'},ce('span',{text:'🏆 '+fmtD(x.date)}),del))});
+    const dI=ce('input',{type:'date',value:today()});
+    tc.appendChild(fld('Дата',dI));
+    tc.appendChild(ce('button',{className:'big',text:'＋ Отметить турнир / старт',onclick:()=>{if(!dI.value)return;st.tours.push({id:uid(),date:dI.value});sv();toast('Турнир отмечен.');renderSt()}}));
+    box.appendChild(tc)}
   box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🏆 Турниры и контрольные точки'}),ce('div',{text:p.tourn}),
     ce('div',{style:'margin-top:6px',text:'Переоценка навыков — раз в 8 недель; промежуточная проверка — после каждого турнира.'})));
   const fc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Фокус ближайшего цикла'}));
@@ -1397,6 +1492,15 @@ function coachCard(){
   const mk=(k,ph,rows)=>{const el=rows?ce('textarea',{rows,value:co[k]||'',placeholder:ph}):ce('input',{type:'text',value:co[k]||'',placeholder:ph});el.oninput=()=>{co[k]=el.value;sv()};return el};
   return ce('div',{className:'card'},fld('Имя тренера',mk('name',user||'Имя и фамилия')),fld('Телефон или мессенджер',mk('contact','+7… / Telegram / WhatsApp')),
     fld('Клуб или площадка',mk('club','Где проходят занятия')),fld('О себе (необязательно)',mk('about','Опыт, квалификация, подход к тренировкам',2)));
+}
+function pdfMark(c,x,y,lvl){
+  const col={red:'#e5484d',amber:'#f0a020',green:'#3fae2a'}[lvl]||'#999';
+  c.beginPath();c.arc(x,y,15,0,7);c.fillStyle=col;c.fill();
+  c.strokeStyle='#fff';c.lineWidth=3.5;c.lineCap='round';c.lineJoin='round';c.beginPath();
+  if(lvl==='green'){c.moveTo(x-7,y);c.lineTo(x-2,y+6);c.lineTo(x+8,y-6)}
+  else if(lvl==='red'){c.moveTo(x-6,y-6);c.lineTo(x+6,y+6);c.moveTo(x+6,y-6);c.lineTo(x-6,y+6)}
+  else{c.moveTo(x,y-7);c.lineTo(x,y+2);c.moveTo(x,y+7);c.lineTo(x,y+7.5)}
+  c.stroke();c.lineCap='butt';
 }
 const PW=1240,PH=1754,PM=80,FONT='system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
 function pdfPages(st){
@@ -1490,13 +1594,22 @@ function pdfPages(st){
   if(st.plan.date)kv('Дата',fmtD(st.plan.date));
   if(st.plan.items.length)st.plan.items.forEach(it=>{
     const lines=wrap(it.text,PW-2*PM-70,28,false);need(lines.length*40+14);
-    y+=40;c.lineWidth=3;c.strokeStyle='#2f8bff';c.strokeRect(PM+6,y-28,28,28);
-    lines.forEach((l,i)=>{if(i)y+=40;txt(l,PM+56,28,false,'#12121a')});y+=8;
+    y+=40;pdfMark(c,PM+20,y-14,it.done?'green':'red');
+    lines.forEach((l,i)=>{if(i)y+=40;txt(l,PM+56,28,false,it.done?'#6b7080':'#12121a')});y+=8;
   });else para('План пока не составлен.',28,'#6b7080');
   if(st.goals.length){
     h2('Над чем работаем',null,120);
     st.goals.forEach(g=>{const lines=wrap(g.text,PW-2*PM-70,28,false);need(lines.length*40+10);y+=40;
-      txt('→',PM+6,30,true,'#8fd400');lines.forEach((l,i)=>{if(i)y+=40;txt(l,PM+56,28,false,'#12121a')});y+=6});
+      pdfMark(c,PM+20,y-14,g.done?'green':'amber');lines.forEach((l,i)=>{if(i)y+=40;txt(l,PM+56,28,false,g.done?'#6b7080':'#12121a')});y+=6});
+  }
+  // status
+  {const AL=stAlerts(st).filter(a=>a.pdf);
+    need(260);h2('Выполнение и статус на '+fmtD(today()),'#ff2e93',200);
+    const undone=st.plan.items.filter(i=>!i.done).length,gd=st.goals.filter(g=>!g.done).length;
+    para('Красный — не сделано или просрочено, жёлтый — скоро или в работе, зелёный — выполнено.',24,'#6b7080');
+    for(const a of AL){const lines=wrap(a.s,PW-2*PM-70,28,false);need(lines.length*40+14);y+=40;pdfMark(c,PM+20,y-14,a.lvl);
+      lines.forEach((l,i)=>{if(i)y+=40;txt(l,PM+56,28,a.lvl==='red',a.lvl==='red'?'#c62833':'#12121a')});y+=8}
+    if(undone||gd){need(70);y+=44;txt('Не выполнено: пунктов плана — '+undone+', целей в работе — '+gd,PM,26,true,'#c62833');y+=6}
   }
   // strategy
   {const sp=stratPlan(st);
@@ -1671,7 +1784,7 @@ function login(n){
   document.getElementById('who').textContent='👤 '+n+' · версия 17.11';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
-  document.getElementById('au').hidden=true;draw();
+  document.getElementById('au').hidden=true;draw();try{stBadge()}catch(e){}
 }
 function logout(){
   if(anim)stopAnim();
