@@ -186,7 +186,7 @@ function figure(x,y,team,ghost,ga){
   ctx.fillStyle=team==='c'?'#fff':lt;ctx.beginPath();ctx.ellipse(0,-R*0.4,R*0.3,R*0.13,0,0,Math.PI);ctx.fill();
   ctx.restore();
 }
-function bR(){return Math.max(2.8,Math.min(W,H)/10*0.085)}
+function bR(){return Math.max(5.6,Math.min(W,H)/10*0.17)}
 function ball(x,y,ghost,ga){
   const k=ga===undefined?1:ga,rb=bR();ctx.save();
   if(ghost){ctx.globalAlpha=0.4*k;ctx.fillStyle='#ffd23f';ctx.beginPath();ctx.arc(x,y,rb,0,7);ctx.fill();ctx.restore();return}
@@ -753,7 +753,7 @@ function player3(x,z,team){
     const rp=[];for(let i=0;i<16;i++){const t=i/16*Math.PI*2;rp.push([bc[0]+Math.cos(t)*0.262,by1,bc[2]+Math.sin(t)*0.262])}
     ring3(rp,'#e9e9ee',2.4,0);
     const bp=[[0,0,0.9],[0.1,0.03,0.85],[-0.1,0.04,0.85],[0.03,-0.1,0.85],[-0.06,-0.08,0.84],[0.14,-0.06,0.8],[-0.15,0.0,0.8],[0.07,0.11,0.8],[-0.08,0.12,0.8]];
-    for(const o of bp)sphere3([bc[0]+o[0],by1+0.02+(o[2]-0.8)*0.45,bc[2]+o[1]],0.04,[255,210,63],6,4);
+    for(const o of bp)sphere3([bc[0]+o[0],by1+0.03+(o[2]-0.8)*0.45,bc[2]+o[1]*1.4],0.07,[255,210,63],6,4);
     const hr=[bc[0]+r[0]*0.26,by1,bc[2]+r[2]*0.26];
     arm3(SL,hr,-1,r,shirt,skin);
     const G=at(0.27,0.24,1.0),d=vnorm(vadd(vmul(f,0.85),vadd(vmul(UP,0.3),vmul(r,0.1))));
@@ -771,7 +771,7 @@ function cone3(x,z){
   prism3([x,0.02,z],[x,0.42,z],0.16,0.0,[255,51,71],10);
   prism3([x,0.17,z],[x,0.25,z],0.1,0.07,[255,255,255],10);
 }
-function ball3(x,z){sphere3([x,0.04,z],0.04,[255,210,63],8,6)}
+function ball3(x,z){sphere3([x,0.08,z],0.08,[255,210,63],8,6)}
 function wall3(x0,z0,x1,z1,h,rimCol,far){
   const q=[[x0,0,z0],[x1,0,z1],[x1,h,z1],[x0,h,z0]];
   const m=proj([(x0+x1)/2,h/2,(z0+z1)/2]);if(!m)return;
@@ -806,7 +806,7 @@ function draw3d(){
     if(it.t==='ruler'||it.t==='stroke')continue;
     const ms=it.t==='ball'?mv.filter(m=>m.of===it.id&&m.k==='ball'):[];
     const pos=it.t==='ball'&&ms.length?ms[ms.length-1].pts[ms[ms.length-1].pts.length-1]:[it.u,it.v],w=wpt(pos[0],pos[1]);
-    if(it.t==='p'){shadow3(w[0],w[2],0.42,1.7);if(it.team==='c')shadow3(w[0]+0.5,w[2]+0.2,0.3,0.9)}else if(it.t==='ball')shadow3(w[0],w[2],0.05,0.08);else shadow3(w[0],w[2],0.17,0.4);
+    if(it.t==='p'){shadow3(w[0],w[2],0.42,1.7);if(it.team==='c')shadow3(w[0]+0.5,w[2]+0.2,0.3,0.9)}else if(it.t==='ball')shadow3(w[0],w[2],0.1,0.16);else shadow3(w[0],w[2],0.17,0.4);
   }
   // floor annotations: strokes, rulers, trails, shadows of previous positions
   for(const it of its)if(it.t==='stroke')line3(it.pts.map(p=>wpt(p[0],p[1],0.03)),'#ffffff',Math.max(2,0.1*ppm),4);
@@ -815,7 +815,7 @@ function draw3d(){
     const col=m.k==='ball'?'#ffd23f':m.team==='b'?'#a9c9ff':m.team==='c'?'#e0e0e0':'#ffbcbe';
     ctx.globalAlpha=fa(m);
     line3(m.pts.map(p=>wpt(p[0],p[1],0.04)),col,Math.max(2,0.12*ppm),10,m.k==='ball'?[]:[10,8]);
-    const s=wpt(m.pts[0][0],m.pts[0][1],0.02),rr=m.k==='ball'?0.08:0.42,rp=[];
+    const s=wpt(m.pts[0][0],m.pts[0][1],0.02),rr=m.k==='ball'?0.16:0.42,rp=[];
     for(let i=0;i<16;i++){const t=i/16*Math.PI*2;rp.push([s[0]+Math.cos(t)*rr,0.03,s[2]+Math.sin(t)*rr*0.8])}
     poly3(rp,'rgba(230,236,250,0.32)');ctx.globalAlpha=1;
   }
@@ -1425,7 +1425,7 @@ function login(n){
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
   items=[];moves=[];hist=[];drag=null;setTool('move');stReset();
-  document.getElementById('who').textContent='👤 '+n+' · версия 15.11-б';
+  document.getElementById('who').textContent='👤 '+n+' · версия 16.11';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au').hidden=true;draw();
