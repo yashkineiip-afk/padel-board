@@ -1052,7 +1052,7 @@ function analytics(st){
   box.appendChild(ce('div',{className:'card'},
     ce('div',{style:'font-size:18px;font-weight:700',text:'Общий уровень: '+f1(ov)+' из 5'}),
     ce('div',{style:'font-weight:600',text:'Уровень для игр (шаг 0,25): '+fl25(ov)}),
-    ce('div',{className:'muted',text:'0 звёзд — навык ещё не освоен, его нужно изучать.'}),
+    ce('div',{className:'muted',text:'Как считается: среднее по 4 группам, в каждой группе — по всем навыкам. Навыки без звёзд идут как 0 и снижают уровень.'}),
     ce('div',{className:'muted',text:'Оценено показателей: '+rated+' из '+ALL.length}),
     SK.map(g=>{const v=gAvg(r,g.items);return ce('div',{className:'muted',text:g.t+': '+f1(v)})})));
   const charts=[{t:'Общий портрет',labels:SK.map(g=>g.short),cur:SK.map(g=>gAvg(r,g.items)),prev:prev&&SK.map(g=>gAvg(prev.r,g.items))}];
@@ -1781,7 +1781,7 @@ function login(n){
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
   items=[];moves=[];hist=[];drag=null;setTool('move');stReset();seedBoard();
-  document.getElementById('who').textContent='👤 '+n+' · версия 17.11';
+  document.getElementById('who').textContent='👤 '+n+' · версия 16.11-б';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au').hidden=true;draw();try{stBadge()}catch(e){}
