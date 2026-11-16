@@ -924,20 +924,23 @@ function ce(tag,props,...kids){
 }
 function fld(label,input){return ce('div',{className:'f'},ce('label',{text:label}),input)}
 function selectEl(opts,val,fn){const s=ce('select');opts.forEach(o=>s.appendChild(ce('option',{value:o,text:o})));s.value=val;s.onchange=()=>fn(s.value);return s}
-function gAvg(r,items){const v=items.map(i=>r[i[0]]||0).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0}
-function overall(r){const v=SK.map(g=>gAvg(r,g.items)).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0}
+function gAvg(r,items){return items.length?items.reduce((a,i)=>a+(r[i[0]]||0),0)/items.length:0}
+function overall(r){const v=SK.map(g=>gAvg(r,g.items));return v.reduce((a,b)=>a+b,0)/v.length}
 const KIDAGES=['6–8 лет','9–10 лет','11–13 лет'];
 function kidOf(st){return st.kid!==undefined?!!st.kid:/oksana/i.test(user||'')}
 function kidAge(st){return st.kidAge||'9–10 лет'}
 function newStudent(){return {id:uid(),kid:/oksana/i.test(user||''),kidAge:'9–10 лет',name:'',age:'',level:'Любитель',hand:'Правша',side:'Универсал',goal:'',r:{},journal:[],plan:{date:'',items:[]},goals:[],history:[],created:today()}}
 function recordHistory(st){
-  if(!ALL.some(i=>st.r[i[0]]>0))return;
   const d=today(),snap={date:d,r:Object.assign({},st.r)},i=st.history.findIndex(x=>x.date===d);
   if(i>=0)st.history[i]=snap;else st.history.push(snap);
   if(st.history.length>40)st.history.shift();
 }
 function prevSnap(st){return st.history.filter(x=>x.date<today()).pop()||null}
-function weakItems(st){return ALL.filter(i=>st.r[i[0]]>0&&st.r[i[0]]<=2).sort((a,b)=>st.r[a[0]]-st.r[b[0]]).slice(0,5)}
+// 0 звёзд = навык ещё не освоен, его нужно изучать. Редкие специальные удары при 0 идут после базовых слабых мест.
+function wkey(st,i){const v=st.r[i[0]]||0;return v+(v===0&&SK[0].items.indexOf(i)>=11?1.5:0)}
+function weakItems(st){return ALL.filter(i=>(st.r[i[0]]||0)<=2).sort((a,b)=>wkey(st,a)-wkey(st,b)).slice(0,5)}
+function goalText(st,i){return ((st.r[i[0]]||0)>0?'Улучшить: ':'Изучить: ')+i[1]}
+function rstr(st,i){const v=st.r[i[0]]||0;return v+' из 5'+(v===0?' — изучаем':'')}
 function addGoal(st,text){
   if(st.goals.some(g=>g.text===text))return false;
   st.goals.push({id:uid(),text,done:false});saveSt(st);return true;
@@ -989,7 +992,7 @@ function viewList(){
   if(!a.length)stBody.appendChild(ce('div',{className:'muted',text:'Пока нет учеников. Нажмите «＋ Новый», чтобы создать первого.'}));
   a.forEach((s,ix)=>{
     const last=s.journal.map(j=>j.date).sort().pop(),ov=overall(s.r),parts=[s.level];
-    if(ov)parts.push('Уровень '+fl25(ov));
+    parts.push('Уровень '+fl25(ov));
     parts.push(last?'Последнее занятие: '+fmtD(last):'Занятий в журнале нет');
     if(s.plan.items.length)parts.push('План'+(s.plan.date?' на '+fmtD(s.plan.date):'')+': '+s.plan.items.length+' п.');
     stBody.appendChild(ce('div',{className:'card tap'+(ix%2?' alt':''),onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
@@ -1031,7 +1034,7 @@ function viewNew(){
   const st=stDraft;
   stHeader('Новый ученик','← Отмена',()=>{stView='list';stDraft=null;renderSt()});
   stBody.appendChild(infoCard(st,true));
-  stBody.appendChild(ce('div',{className:'gt',text:'Характеристики игрока (нажмите на звёзды; повторное нажатие сбрасывает оценку)'}));
+  stBody.appendChild(ce('div',{className:'gt',text:'Характеристики игрока: 0 звёзд — навык ещё не освоен, его нужно изучать (нажмите на звёзды; повторное нажатие сбрасывает оценку)'}));
   stBody.appendChild(ratingsEditor(st,()=>{}));
   stBody.appendChild(ce('button',{className:'big',text:'Создать ученика',onclick:()=>{
     const nm=(st.name||'').trim();if(!nm){toast('Впишите имя ученика.');return}
@@ -1041,10 +1044,11 @@ function viewNew(){
 function analytics(st){
   const box=ce('div'),r=st.r,rated=ALL.filter(i=>r[i[0]]>0).length,ov=overall(r),prev=prevSnap(st);
   box.appendChild(ce('div',{className:'card'},
-    ce('div',{style:'font-size:18px;font-weight:700',text:ov?('Общий уровень: '+f1(ov)+' из 5'):'Оценки пока не проставлены'}),
-    ov?ce('div',{style:'font-weight:600',text:'Уровень для игр (шаг 0,25): '+fl25(ov)}):null,
+    ce('div',{style:'font-size:18px;font-weight:700',text:'Общий уровень: '+f1(ov)+' из 5'}),
+    ce('div',{style:'font-weight:600',text:'Уровень для игр (шаг 0,25): '+fl25(ov)}),
+    ce('div',{className:'muted',text:'0 звёзд — навык ещё не освоен, его нужно изучать.'}),
     ce('div',{className:'muted',text:'Оценено показателей: '+rated+' из '+ALL.length}),
-    SK.map(g=>{const v=gAvg(r,g.items);return ce('div',{className:'muted',text:g.t+': '+(v?f1(v):'—')})})));
+    SK.map(g=>{const v=gAvg(r,g.items);return ce('div',{className:'muted',text:g.t+': '+f1(v)})})));
   const charts=[{t:'Общий портрет',labels:SK.map(g=>g.short),cur:SK.map(g=>gAvg(r,g.items)),prev:prev&&SK.map(g=>gAvg(prev.r,g.items))}];
   [['Техника: основные удары',SK[0].items.slice(0,11)],['Техника: специальные удары',SK[0].items.slice(11)],['Физика',SK[2].items],['Тактика и психология',SK[1].items.concat(SK[3].items)]].forEach(x=>{
     charts.push({t:x[0],labels:x[1].map(i=>i[2]),cur:x[1].map(i=>r[i[0]]||0),prev:prev&&x[1].map(i=>prev.r[i[0]]||0)});
@@ -1058,13 +1062,13 @@ function analytics(st){
   const strong=ALL.filter(i=>r[i[0]]>=4).sort((a,b)=>r[b[0]]-r[a[0]]).slice(0,5),weak=weakItems(st);
   box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'💪 Сильные стороны'}),
     strong.length?strong.map(i=>ce('div',{text:'★'.repeat(r[i[0]])+' '+i[1]})):ce('div',{className:'muted',text:'Пока нет показателей на 4–5 звёзд.'})));
-  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Зоны роста (оценка 1–2)'}),
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Зоны роста (0–2 звезды)'}),
     weak.length?weak.map(i=>{
-      const gt='Улучшить: '+i[1],has=()=>st.goals.some(g=>g.text===gt),b=ce('button',{});
+      const gt=goalText(st,i),has=()=>st.goals.some(g=>g.text===gt),b=ce('button',{});
       const upd=()=>{b.textContent=has()?'✓ В целях':'＋ В цели';b.classList.toggle('on',has())};
       b.onclick=()=>{if(has()){st.goals=st.goals.filter(g=>g.text!==gt);saveSt(st);toast('Убрано из целей.')}else{addGoal(st,gt);toast('Добавлено в цели ученика.')}upd()};
       upd();
-      return ce('div',{className:'r2',style:'justify-content:space-between;margin:4px 0'},ce('span',{text:'★'.repeat(r[i[0]])+' '+i[1]}),b)}):ce('div',{className:'muted',text:'Нет слабых мест среди оценённых показателей.'})));
+      return ce('div',{className:'r2',style:'justify-content:space-between;margin:4px 0'},ce('span',{text:((r[i[0]]||0)?'★'.repeat(r[i[0]]):'0★ изучить')+' '+i[1]}),b)}):ce('div',{className:'muted',text:'Нет навыков на 0–2 звезды.'})));
   return box;
 }
 const stRatDraft={};
@@ -1072,7 +1076,7 @@ function tabPortrait(st,box,tEl){
   box.appendChild(infoCard(st,false,v=>{tEl.textContent=v||'Ученик'}));
   const an=ce('div'),drawAn=()=>{an.textContent='';an.appendChild(analytics(st))};
   box.appendChild(an);
-  box.appendChild(ce('div',{className:'gt',text:'Оценки: отметьте нужные звёзды, затем нажмите «Сохранить изменения» (повторное нажатие на звезду сбрасывает)'}));
+  box.appendChild(ce('div',{className:'gt',text:'Оценки: 0 звёзд — навык ещё не освоен, его нужно изучать. Отметьте звёзды и нажмите «Сохранить изменения» (повторное нажатие на звезду сбрасывает)'}));
   const dr={r:Object.assign({},stRatDraft[st.id]||st.r)};
   const same=()=>ALL.every(i=>(dr.r[i[0]]||0)===(st.r[i[0]]||0));
   const bar=ce('div',{style:'position:sticky;bottom:0;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;margin:8px -4px 0;background:var(--bg);border-top:1px solid var(--lime)'});
@@ -1180,11 +1184,11 @@ function tabPlan(st,box){
       st.journal.push({id:uid(),date:pl.date||today(),text:pl.items.map(i=>'• '+i.text).join('\n')});
       pl.items=[];pl.date='';saveSt(st);toast('План перенесён в журнал.');stTab='journal';renderSt();
     }})));
-  const wk=weakItems(st).filter(i=>!st.goals.some(g=>g.text==='Улучшить: '+i[1]));
+  const wk=weakItems(st).filter(i=>!st.goals.some(g=>g.text===goalText(st,i)));
   box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Над чем работаем (цели)'}),
     listEditor(st,st.goals,'Улучшить: '),
     wk.length?ce('div',{style:'margin-top:10px'},ce('div',{className:'muted',text:'Предложения по слабым местам:'}),
-      wk.map(i=>ce('button',{style:'margin:4px 4px 0 0',text:'＋ '+i[1],onclick:()=>{addGoal(st,'Улучшить: '+i[1]);renderSt()}}))):null));
+      wk.map(i=>ce('button',{style:'margin:4px 4px 0 0',text:'＋ '+i[1],onclick:()=>{addGoal(st,goalText(st,i));renderSt()}}))):null));
 }
 function viewDetail(){
   const st=findSt(stCur);
@@ -1216,8 +1220,7 @@ const STR_TOURN={
   D:'1–2 турнира в месяц; один основной старт за цикл, остальные — тренировочные.',
   E:'Около 2 турниров в месяц по календарю; за 1–2 недели до основного старта — подводка (меньше объёма, больше игр).'};
 function stBand(st){
-  let v=overall(st.r);
-  if(!v)v={'Новичок':1,'Начинающий':2,'Любитель':3,'Продвинутый':4,'Профи':4.75}[st.level]||2.5;
+  const v=overall(st.r);
   return v<1.5?'A':v<2.5?'B':v<3.5?'C':v<4.5?'D':'E';
 }
 function pD(s){const a=s.split('-');return new Date(+a[0],+a[1]-1,+a[2])}
@@ -1228,7 +1231,7 @@ const KID_STAGE={'6–8 лет':'6–8 лет: играем и двигаемс�
 const KID_TOURN={'6–8 лет':'Турниры не нужны. 1–2 раза в квартал — внутриклубный праздник с мини-играми и без рейтингов: главное, чтобы было весело.','9–10 лет':'Дружеские детские турниры или фестивали раз в 1–2 месяца. Первый старт — вместе с другом; важнее опыт, чем результат.','11–13 лет':'Детские турниры (категории до 12 / до 14 по правилам вашей федерации) примерно раз в месяц. После каждого — спокойный разбор с тренером без оценок «хорошо/плохо».'};
 function stratPlanKid(st){
   const sp=st.strat||{},ag=kidAge(st),f=sp.focus||'dev',days=+sp.days||3,n=Object.assign({},KID_BASE[ag]),ov0=overall(st.r);
-  if(ov0>0&&ov0<1.5)n.game=Math.max(0,n.game-1);
+  if(ov0<1.5)n.game=Math.max(0,n.game-1);
   if(ov0>=3.5)n.game+=1;
   if(f==='fun'){n.match+=1;n.tech=Math.min(n.tech,1);n.game=Math.min(n.game,1);n.mental=0}
   if(f==='comp'){n.game+=1;n.match+=1}
@@ -1254,10 +1257,10 @@ function stratPlanKid(st){
   let foc=weakItems(st).slice(0,3);
   if(!foc.length)foc=ALL.filter(i=>st.r[i[0]]>0&&st.r[i[0]]<=3).sort((a,b2)=>st.r[a[0]]-st.r[b2[0]]).slice(0,3);
   if(!foc.length)foc=ALL.filter(i=>st.r[i[0]]>0).sort((a,b2)=>st.r[a[0]]-st.r[b2[0]]).slice(0,3);
-  const gs=SK.map(g=>[g,gAvg(st.r,g.items)]).filter(x=>x[1]>0).sort((a,b2)=>a[1]-b2[1]);
+  const gs=SK.map(g=>[g,gAvg(st.r,g.items)]).sort((a,b2)=>a[1]-b2[1]);
   const cyc=sp.cycle||'';let wk=0,end='';
   if(cyc){wk=Math.floor((pD(today())-pD(cyc))/(7*86400000))+1;end=addDays(cyc,56)}
-  return {kid:true,band:ag,bandName:KID_STAGE[ag],focus:f,days,rows,total,tourn,out,foc,weakG:gs.length>1?gs[0][0]:null,cyc,wk,end};
+  return {kid:true,band:ag,bandName:KID_STAGE[ag],focus:f,days,rows,total,tourn,out,foc,weakG:gs[0][1]<gs[gs.length-1][1]?gs[0][0]:null,cyc,wk,end};
 }
 function stratPlan(st){
   if(kidOf(st))return stratPlanKid(st);
@@ -1285,17 +1288,18 @@ function stratPlan(st){
   let foc=weakItems(st).slice(0,3);
   if(!foc.length)foc=ALL.filter(i=>st.r[i[0]]>0&&st.r[i[0]]<=3).sort((a,b2)=>st.r[a[0]]-st.r[b2[0]]).slice(0,3);
   if(!foc.length)foc=ALL.filter(i=>st.r[i[0]]>0).sort((a,b2)=>st.r[a[0]]-st.r[b2[0]]).slice(0,3);
-  const gs=SK.map(g=>[g,gAvg(st.r,g.items)]).filter(x=>x[1]>0).sort((a,b2)=>a[1]-b2[1]);
+  const gs=SK.map(g=>[g,gAvg(st.r,g.items)]).sort((a,b2)=>a[1]-b2[1]);
   const cyc=sp.cycle||'';let wk=0,end='';
   if(cyc){wk=Math.floor((pD(today())-pD(cyc))/(7*86400000))+1;end=addDays(cyc,56)}
-  return {band:b,bandName:STR_BANDS[b],focus:f,days,rows,total,tourn,out,foc,weakG:gs.length>1?gs[0][0]:null,cyc,wk,end};
+  return {band:b,bandName:STR_BANDS[b],focus:f,days,rows,total,tourn,out,foc,weakG:gs[0][1]<gs[gs.length-1][1]?gs[0][0]:null,cyc,wk,end};
 }
 const STR_TIPS_KID=['Игровой формат: мини-розыгрыши по 3–5 ударов, соревнования «кто дольше», частая смена партнёров — без очередей и долгих объяснений.','Прогресс — по умению, а не по возрасту: переводите ребёнка на следующий этап, когда он готов (держит розыгрыш, понимает правила).','Короткие видимые цели на 2 недели, звёздочки или наклейки за успехи — ребёнку важно видеть свой рост.','Делайте занятия разными: меняйте упражнения, партнёров и игры, чтобы не было ощущения «опять то же самое».','Подключайте родителей: что отметить дома, как поддержать после игры, без советов с трибуны во время матча.','На турнирах ценится опыт: первый старт — вместе с другом, разбор без оценок «хорошо/плохо».'];
 const STR_SRC_KID=['ВОЗ, рекомендации для детей и подростков 5–17 лет: в среднем не меньше 60 мин в день умеренной и высокой активности; нагрузка на силу и кости не менее 3 дней в неделю (who.int).','Руководство по детским программам падел (How to Start a Junior Padel Program, padelusa.org): занятие 60 мин, 90 мин слишком много для начинающих и детей до 12 лет, мини-розыгрыши, группы 4–8, продвижение по умению, первый турнир — вместе с другом.','Инвентарь и категории по возрасту, роль родителей (Padel for Kids, padel-rules.pages.dev).','Сон 9–12 часов для 6–12 лет и 8–10 часов для 13–18 лет (консенсус Американской академии медицины сна, AASM, 2016).'];
 const STR_PHASES=[['Неделя 1','Диагностика: проставить оценки, выбрать 2–3 цели цикла.'],['Недели 2–4','База: техника по зонам роста и физическая основа.'],['Недели 5–7','Игра: тактика, розыгрыши, контрольные игры или турнир.'],['Неделя 8','Переоценка: сравнить портрет «было/стало», поставить цели нового цикла.']];
 const STR_SRC=['ВОЗ, рекомендации по физической активности для взрослых: 150–300 мин умеренной аэробной нагрузки в неделю и силовые упражнения не менее 2 дней в неделю (who.int).','Структура цикла «техника → тактика → игры» и пересмотр плана через 8 недель; 3–4 занятия на корте по 75–90 мин плюс 2 внекортовые тренировки по 30–45 мин (8-Week Padel Training Plan for Intermediate Players, padel-rules.pages.dev).','Верхний ориентир для цели «5 уровень»: 3 занятия с тренером, 2 товарищеские игры в неделю, 1 турнир в 1–2 месяца (пример режима, J. Galea, jeangalea.com).'];
-function drillText(it,kid){
+function drillText(it,kid,rt){
   const g=SK.find(x=>x.items===undefined?false:x.items.some(i=>i[0]===it[0]));const gk=g?g.g:'tech';
+  if(rt===0&&gk==='tech')return kid?'Знакомство в игре: '+it[1]+' — показ и первые попытки в мини-играх (15 мин)':'Знакомство: '+it[1]+' — объяснение, показ и первые повторения (15 мин)';
   if(kid){
     if(gk==='tech')return 'Игровое упражнение: '+it[1]+' — мини-игры и серии по 8–10 мячей (15 мин)';
     if(gk==='tact')return it[1]+': игра 2×2 с простым заданием (15 мин)';
@@ -1319,7 +1323,7 @@ function autoRevise(st,silent){
   if(p.foc.length){
     const mk=t=>({id:uid(),text:t,done:false,auto:true}),list=[];
     list.push(mk(kid?'Разминка-игра (10 мин)':'Разминка и мобильность (10 мин)'));
-    p.foc.forEach(i=>list.push(mk(drillText(i,kid))));
+    p.foc.forEach(i=>list.push(mk(drillText(i,kid,st.r[i[0]]||0))));
     list.push(mk(kid?'Мини-игра с применением: '+p.foc.map(i=>i[1]).join(', ')+' (15 мин)':'Игровая часть: применить в розыгрышах — '+p.foc.map(i=>i[1]).join(', ')+' (15 мин)'));
     list.push(mk(kid?'Итоги: что получилось и что понравилось (5 мин)':'Итоги и задание на неделю (5 мин)'));
     pl.items=list.concat(pl.items);
@@ -1367,7 +1371,7 @@ function tabStrat(st,box){
   box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🏆 Турниры и контрольные точки'}),ce('div',{text:p.tourn}),
     ce('div',{style:'margin-top:6px',text:'Переоценка навыков — раз в 8 недель; промежуточная проверка — после каждого турнира.'})));
   const fc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Фокус ближайшего цикла'}));
-  if(p.foc.length){p.foc.forEach(i=>fc.appendChild(ce('div',{text:'• '+i[1]+' — '+st.r[i[0]]+' из 5'})));
+  if(p.foc.length){p.foc.forEach(i=>fc.appendChild(ce('div',{text:'• '+i[1]+' — '+rstr(st,i)})));
     if(p.weakG)fc.appendChild(ce('div',{className:'muted',style:'margin-top:6px',text:'Самая слабая группа сейчас: '+p.weakG.t+' — заложите в неё больше времени.'}))}
   else fc.appendChild(ce('div',{className:'muted',text:'Проставьте оценки во вкладке «Портрет» — здесь появятся приоритеты.'}));
   box.appendChild(fc);
@@ -1428,7 +1432,7 @@ function pdfPages(st){
   c.fillStyle='#07070b';c.fillRect(0,0,PW,230);c.fillStyle='#c6ff3d';c.fillRect(0,230,PW,8);c.fillStyle='#ff2e93';c.fillRect(0,238,PW,4);
   y=100;txt('ПОРТРЕТ ИГРОКА · ПАДЕЛ',PM,40,true,'#c6ff3d');
   y=170;txt((st.name||'Ученик'),PM,60,true,'#ffffff');
-  {const ov0=overall(st.r);if(ov0){fnt(60,true);const nw=c.measureText(st.name||'Ученик').width,lt='Уровень '+fl25(ov0);fnt(44,true);const lw=c.measureText(lt).width;
+  {const ov0=overall(st.r);{fnt(60,true);const nw=c.measureText(st.name||'Ученик').width,lt='Уровень '+fl25(ov0);fnt(44,true);const lw=c.measureText(lt).width;
     if(PM+nw+40+lw<=PW-PM)txt(lt,PM+nw+40,44,true,'#c6ff3d');else{y=215;txt(lt,PM,40,true,'#c6ff3d');y=170}}}
   y=100;txt(fmtD(today()),PW-PM,30,false,'#aab0c4','right');
   y=300;
@@ -1439,7 +1443,7 @@ function pdfPages(st){
   // student
   h2('Данные ученика',null,200);
   kv('Имя',st.name);kv('Категория',kidOf(st)?('Ребёнок, '+kidAge(st)):'Взрослый');kv('Уровень',st.level);kv('Ведущая рука',st.hand);kv('Позиция на корте',st.side);
-  const ov=overall(st.r);if(ov){kv('Уровень (шаг 0,25)',fl25(ov));kv('Средняя оценка',f1(ov)+' из 5')}
+  const ov=overall(st.r);{kv('Уровень (шаг 0,25)',fl25(ov));kv('Средняя оценка',f1(ov)+' из 5')}
   if(st.goal)kv('Цель и заметки',st.goal);
   // radars
   const r=st.r,rated=ALL.some(i=>r[i[0]]>0);
@@ -1472,7 +1476,7 @@ function pdfPages(st){
       for(let j=0;j<2&&i+j<g.items.length;j++){
         const it=g.items[i+j],x=PM+j*(colW+40),v=r[it[0]]||0;
         txt(it[1],x,26,false,'#12121a');
-        if(v>0)dots(x+colW-5*34+12,y-9,v);else txt('—',x+colW-12,26,false,'#a0a5b5','right');
+        dots(x+colW-5*34+12,y-9,v);
       }
     }
     y+=14;
@@ -1480,7 +1484,7 @@ function pdfPages(st){
   // strengths / growth
   const strong=ALL.filter(i=>r[i[0]]>=4).sort((a,b)=>r[b[0]]-r[a[0]]).slice(0,6),weak=weakItems(st);
   if(strong.length){h2('Сильные стороны',null,100);strong.forEach(i=>para('★ '+i[1]+' — '+r[i[0]]+' из 5',28,'#12121a',PM+10))}
-  if(weak.length){h2('Зоны роста','#ff2e93',100);weak.forEach(i=>para('• '+i[1]+' — '+r[i[0]]+' из 5',28,'#12121a',PM+10))}
+  if(weak.length){h2('Зоны роста (0–2 звезды)','#ff2e93',100);weak.forEach(i=>para('• '+i[1]+' — '+rstr(st,i),28,'#12121a',PM+10))}
   // plan
   h2('План ближайшей тренировки','#2f8bff',200);
   if(st.plan.date)kv('Дата',fmtD(st.plan.date));
@@ -1513,7 +1517,7 @@ function pdfPages(st){
     para('Переоценка навыков — раз в 8 недель; промежуточная проверка — после каждого турнира.',27,'#12121a',PM+10);
     need(220);y+=52;txt('Фазы цикла',PM,30,true,'#12121a');y+=4;
     STR_PHASES.forEach(x=>para(x[0]+': '+x[1],27,'#12121a',PM+10));
-    if(sp.foc.length){need(220);y+=52;txt('Фокус ближайшего цикла',PM,30,true,'#12121a');y+=4;sp.foc.forEach(i=>para('• '+i[1]+' — '+st.r[i[0]]+' из 5',27,'#12121a',PM+10))}
+    if(sp.foc.length){need(220);y+=52;txt('Фокус ближайшего цикла',PM,30,true,'#12121a');y+=4;sp.foc.forEach(i=>para('• '+i[1]+' — '+rstr(st,i),27,'#12121a',PM+10))}
     need(260);y+=52;txt(sp.kid?'Что делаем вне занятий (ребёнок и родители)':'Что делаю сам, кроме тренировок с тренером',PM,30,true,'#12121a');y+=4;
     sp.out.forEach(t=>para('• '+t,27,'#12121a',PM+10));
     need(100);y+=40;txt(sp.kid?'Ориентиры по открытым источникам (ВОЗ, детское падел, AASM) и не являются':'Ориентиры составлены по открытым источникам (ВОЗ; методики 8-недельных циклов в падел) и не являются',PM,20,false,'#6b7080');
