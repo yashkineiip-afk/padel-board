@@ -50,13 +50,19 @@ input{font-size:16px}
 .card.tap{cursor:pointer}
 .muted{opacity:.7;font-size:14px}
 .tabs{display:flex;gap:6px;margin-bottom:6px}
-.tabs button{flex:1}
+.tabs button{flex:1;min-width:0;padding:9px 2px;font-size:13.5px;white-space:nowrap}
 .gt{font-weight:700;margin:16px 0 4px;color:var(--lime)}
 .rrow{display:flex;align-items:center;gap:8px;padding:2px 0}
 .star{font-size:28px;line-height:1;padding:3px 2px;color:#c6ff3d;text-shadow:0 0 8px rgba(198,255,61,.5);cursor:pointer;-webkit-user-select:none;user-select:none}
 .f{margin:8px 0}
 .f label{display:block;font-size:13px;opacity:.75;margin-bottom:3px}
 .f input,.f select,.f textarea{width:100%;box-sizing:border-box;flex:none}
+input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;width:100%;box-sizing:border-box;min-height:42px;display:block;text-align:left;overflow:hidden}
+input[type=date]::-webkit-date-and-time-value{text-align:left;min-width:0}
+input[type=date]::-webkit-calendar-picker-indicator{opacity:.7}
+.card,.mbox,.f{max-width:100%;box-sizing:border-box;min-width:0}
+.card.alt{background:linear-gradient(180deg,rgba(198,255,61,.17),rgba(198,255,61,.08));border-color:rgba(198,255,61,.5)}
+.stp{display:flex;align-items:center;gap:6px}.stp button{padding:6px 12px;min-width:38px}.stp b{min-width:22px;text-align:center}
 textarea,select{font:inherit;font-size:16px;padding:9px;border-radius:10px;border:1px solid var(--bd);background:var(--btn);color:var(--fg);-webkit-user-select:text;user-select:text}
 .r2{display:flex;gap:6px;align-items:center}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:30;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box}
@@ -472,6 +478,12 @@ function addP(team){
   const n=items.filter(i=>i.t==='p'&&i.team===team).length+1;if(n>4)return;
   snap();items.push({id:nid++,t:'p',team,u:[0.2,0.8,0.4,0.6][n-1],v:team==='b'?0.9:0.1});draw();
 }
+function seedBoard(){
+  nid=1;items=[];moves=[];
+  [0.2,0.8].forEach(u=>items.push({id:nid++,t:'p',team:'b',u,v:0.9}));
+  [0.2,0.8].forEach(u=>items.push({id:nid++,t:'p',team:'r',u,v:0.1}));
+  items.push({id:nid++,t:'ball',u:0.5,v:0.6});
+}
 document.getElementById('ab').onclick=()=>addP('b');
 document.getElementById('ar').onclick=()=>addP('r');
 document.getElementById('am').onclick=()=>{
@@ -884,7 +896,7 @@ document.getElementById('b3d').onclick=()=>set3d(!view3d);
 
 // ================= Ученики =================
 const SK=[
- {g:'tech',t:'Удары и техника',short:'Техника',items:[['serve','Подача','Подача'],['ret','Возврат подачи','Возврат'],['fh','Форхенд','Форхенд'],['bh','Бэкхенд','Бэкхенд'],['vfh','Воле справа','Воле пр.'],['vbh','Воле слева','Воле лев.'],['lob','Лоб','Лоб'],['smash','Смэш','Смэш'],['band','Бандеха','Бандеха'],['vib','Вибора','Вибора'],['glass','Игра от стекла','Стекло']]},
+ {g:'tech',t:'Удары и техника',short:'Техника',items:[['serve','Подача','Подача'],['ret','Возврат подачи','Возврат'],['fh','Форхенд','Форхенд'],['bh','Бэкхенд','Бэкхенд'],['vfh','Воле справа','Воле пр.'],['vbh','Воле слева','Воле лев.'],['lob','Глобо','Глобо'],['smash','Смэш','Смэш'],['band','Бандеха','Бандеха'],['vib','Вибора','Вибора'],['glass','Игра от стекла','Стекло'],['corner','Игра в углу','Угол'],['spin','Кручение','Кручение'],['chiq','Чикита','Чикита'],['rulo','Руло','Руло'],['gancho','Ганчо','Ганчо'],['port','Портрес','Портрес'],['block','Блок','Блок'],['baj','Бахада','Бахада'],['dej','Дехада','Дехада'],['chan','Чанклетасо','Чанклет.']]},
  {g:'tact',t:'Тактика',short:'Тактика',items:[['pos','Позиционная игра','Позиция'],['sel','Выбор удара','Выбор'],['team','Игра в паре','Пара'],['read','Чтение игры','Чтение']]},
  {g:'phys',t:'Физика',short:'Физика',items:[['speed','Скорость','Скорость'],['end','Выносливость','Вынослив.'],['agi','Ловкость и координация','Ловкость'],['str','Сила','Сила'],['flex','Гибкость','Гибкость'],['react','Реакция','Реакция']]},
  {g:'psy',t:'Психология',short:'Психика',items:[['focus','Концентрация','Концентр.'],['conf','Уверенность','Уверенн.'],['emo','Контроль эмоций','Эмоции'],['disc','Дисциплина','Дисципл.']]}
@@ -892,8 +904,8 @@ const SK=[
 const ALL=SK.flatMap(g=>g.items);
 const LEVELS=['Новичок','Начинающий','Любитель','Продвинутый','Профи'],HANDS=['Правша','Левша'],SIDES=['Универсал','Справа','Слева'];
 const stEl=document.getElementById('st'),stHead=document.getElementById('st-head'),stBody=document.getElementById('st-body');
-let stView='list',stCur=null,stTab='portrait',stDraft=null,stLast='',memSt={};
-function stReset(){stEl.hidden=true;stView='list';stCur=null;stDraft=null;stLast=''}
+let stListTab='students',stView='list',stCur=null,stTab='portrait',stDraft=null,stLast='',memSt={};
+function stReset(){stListTab='students';stEl.hidden=true;stView='list';stCur=null;stDraft=null;stLast=''}
 function getSt(){try{const s=localStorage.getItem('padel-students-v1:'+user);return s?JSON.parse(s):(memSt[user]||[])}catch(e){return memSt[user]||[]}}
 function putSt(a){memSt[user]=a;try{localStorage.setItem('padel-students-v1:'+user,JSON.stringify(a));return true}catch(e){return false}}
 function findSt(id){return getSt().find(x=>x.id===id)||null}
@@ -967,14 +979,17 @@ function stOpen(){stEl.hidden=false;stView='list';stCur=null;stDraft=null;render
 function viewList(){
   stHeader('👥 Ученики','← Доска',()=>{stEl.hidden=true},ce('button',{text:'＋ Новый',onclick:()=>{stDraft=newStudent();stView='new';renderSt()}}));
   const a=getSt().slice().sort((x,y)=>(x.name||'').localeCompare(y.name||'','ru'));
-  stBody.appendChild(coachCard());
+  const lt=ce('div',{className:'tabs'});
+  [['students','Ученики ('+a.length+')'],['coach','Данные тренера']].forEach(x=>lt.appendChild(ce('button',{text:x[1],className:stListTab===x[0]?'on':'',onclick:()=>{stListTab=x[0];renderSt()}})));
+  stBody.appendChild(lt);
+  if(stListTab==='coach'){stBody.appendChild(ce('div',{className:'muted',text:'Эти данные печатаются в PDF для ученика: имя, контакты и клуб тренера.'}));stBody.appendChild(coachCard());return}
   if(!a.length)stBody.appendChild(ce('div',{className:'muted',text:'Пока нет учеников. Нажмите «＋ Новый», чтобы создать первого.'}));
-  a.forEach(s=>{
+  a.forEach((s,ix)=>{
     const last=s.journal.map(j=>j.date).sort().pop(),ov=overall(s.r),parts=[s.level];
     if(ov)parts.push('Уровень '+fl25(ov));
     parts.push(last?'Последнее занятие: '+fmtD(last):'Занятий в журнале нет');
     if(s.plan.items.length)parts.push('План'+(s.plan.date?' на '+fmtD(s.plan.date):'')+': '+s.plan.items.length+' п.');
-    stBody.appendChild(ce('div',{className:'card tap',onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
+    stBody.appendChild(ce('div',{className:'card tap'+(ix%2?' alt':''),onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
       ce('div',{style:'font-weight:600;font-size:17px',text:s.name||'Без имени'}),ce('div',{className:'muted',text:parts.join(' · ')})));
   });
 }
@@ -1021,7 +1036,7 @@ function analytics(st){
     ce('div',{className:'muted',text:'Оценено показателей: '+rated+' из '+ALL.length}),
     SK.map(g=>{const v=gAvg(r,g.items);return ce('div',{className:'muted',text:g.t+': '+(v?f1(v):'—')})})));
   const charts=[{t:'Общий портрет',labels:SK.map(g=>g.short),cur:SK.map(g=>gAvg(r,g.items)),prev:prev&&SK.map(g=>gAvg(prev.r,g.items))}];
-  [['Техника (удары)',SK[0].items],['Физика',SK[2].items],['Тактика и психология',SK[1].items.concat(SK[3].items)]].forEach(x=>{
+  [['Техника: основные удары',SK[0].items.slice(0,11)],['Техника: специальные удары',SK[0].items.slice(11)],['Физика',SK[2].items],['Тактика и психология',SK[1].items.concat(SK[3].items)]].forEach(x=>{
     charts.push({t:x[0],labels:x[1].map(i=>i[2]),cur:x[1].map(i=>r[i[0]]||0),prev:prev&&x[1].map(i=>prev.r[i[0]]||0)});
   });
   const cw=Math.max(240,Math.min(380,(stBody.clientWidth||360)-24));
@@ -1166,10 +1181,114 @@ function viewDetail(){
   const pdfB=ce('button',{text:'📄 PDF',onclick:()=>exportPdf(st)});
   const tEl=stHeader(st.name||'Ученик','← Ученики',()=>{stView='list';renderSt()},ce('span',{style:'display:flex;gap:6px'},pdfB,del));
   const tabs=ce('div',{className:'tabs'});
-  [['portrait','Портрет'],['journal','Журнал ('+st.journal.length+')'],['plan','План']].forEach(x=>tabs.appendChild(ce('button',{text:x[1],className:stTab===x[0]?'on':'',onclick:()=>{stTab=x[0];renderSt()}})));
+  [['portrait','Портрет'],['journal','Журнал ('+st.journal.length+')'],['plan','План'],['strat','Стратегия']].forEach(x=>tabs.appendChild(ce('button',{text:x[1],className:stTab===x[0]?'on':'',onclick:()=>{stTab=x[0];renderSt()}})));
   stBody.appendChild(tabs);
   const box=ce('div');stBody.appendChild(box);
-  if(stTab==='portrait')tabPortrait(st,box,tEl);else if(stTab==='journal')tabJournal(st,box);else tabPlan(st,box);
+  if(stTab==='portrait')tabPortrait(st,box,tEl);else if(stTab==='journal')tabJournal(st,box);else if(stTab==='strat')tabStrat(st,box);else tabPlan(st,box);
+}
+// ===== Стратегия развития =====
+const STR_ROWS=[['tech','🎾','Техника с тренером','60 мин',60],['game','🧠','Игровая тренировка (тактика, розыгрыши)','90 мин',90],['match','🤝','Свободные игры и спарринги','60–90 мин',75],['phys','💪','Физическая подготовка (вне корта)','30–45 мин',40],['mob','🧘','Мобильность и растяжка','10–15 мин',12],['video','🎥','Видео-разбор (свои игры, профи)','20–30 мин',25],['mental','🧩','Ментальная работа (рутины, цели, дыхание)','15–20 мин',15]];
+const STR_BASE={
+  A:{tech:2,game:0,match:1,phys:2,mob:3,video:0,mental:0},
+  B:{tech:2,game:1,match:1,phys:2,mob:3,video:1,mental:0},
+  C:{tech:1,game:2,match:2,phys:2,mob:3,video:1,mental:0},
+  D:{tech:1,game:2,match:2,phys:3,mob:4,video:1,mental:1},
+  E:{tech:1,game:2,match:3,phys:3,mob:4,video:2,mental:1}};
+const STR_BANDS={A:'Старт (до 1,5)',B:'Основа (1,5–2,5)',C:'Развитие (2,5–3,5)',D:'Продвинутый (3,5–4,5)',E:'Соревновательный (4,5–5)'};
+const STR_FOCUS=[['dev','Прогресс в игре'],['fun','Удержание и удовольствие'],['comp','Подготовка к турнирам']];
+const STR_TOURN={
+  A:'Первые 8–12 недель турниры не нужны. За цикл — один дружеский формат (американо, мини-турнир), чтобы почувствовать вкус игры.',
+  B:'Один дружеский или клубный турнир раз в 1–2 месяца; после него — короткий разбор.',
+  C:'Один клубный или любительский турнир в месяц; после каждого — разбор в журнале.',
+  D:'1–2 турнира в месяц; один основной старт за цикл, остальные — тренировочные.',
+  E:'Около 2 турниров в месяц по календарю; за 1–2 недели до основного старта — подводка (меньше объёма, больше игр).'};
+function stBand(st){
+  let v=overall(st.r);
+  if(!v)v={'Новичок':1,'Начинающий':2,'Любитель':3,'Продвинутый':4,'Профи':4.75}[st.level]||2.5;
+  return v<1.5?'A':v<2.5?'B':v<3.5?'C':v<4.5?'D':'E';
+}
+function pD(s){const a=s.split('-');return new Date(+a[0],+a[1]-1,+a[2])}
+function addDays(s,n){const d=pD(s);d.setDate(d.getDate()+n);const p=x=>String(x).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
+function stratPlan(st){
+  const sp=st.strat||{},b=stBand(st),f=sp.focus||'dev',days=+sp.days||4,n=Object.assign({},STR_BASE[b]);
+  if(f==='fun'){n.match+=1;n.tech=Math.min(n.tech,1);n.game=Math.min(n.game,1);n.video=Math.min(n.video,1);n.mental=0}
+  if(f==='comp'){n.game+=1;n.match+=1;n.video=Math.max(n.video,1);n.mental=Math.max(n.mental,1)}
+  const long=()=>n.tech+n.game+n.match+n.phys;
+  for(const pass of [{match:1,game:1,phys:1,tech:1},{game:0,match:0,phys:0,tech:0}]){
+    let g=40;while(long()>days+1&&g--){let ch=false;for(const k of ['match','game','phys','tech']){if(n[k]>pass[k]){n[k]--;ch=true;break}}if(!ch)break}
+  }
+  const ov=sp.ov||{},rows=STR_ROWS.map(x=>{const cnt=ov[x[0]]!=null?ov[x[0]]:n[x[0]];return {k:x[0],ic:x[1],name:x[2],dur:x[3],n:cnt,def:n[x[0]],mins:cnt*x[4]}});
+  const total=rows.reduce((a,x)=>a+x.mins,0),cnt=k=>rows.find(x=>x.k===k).n;
+  let tourn=STR_TOURN[b];
+  if(f==='fun')tourn='Только в удовольствие: дружеские форматы (американо, лиги) раз в 1–2 месяца. Главное — чтобы игра радовала и хотелось приходить.';
+  if(f==='comp')tourn+=' В этом режиме выбираем один основной старт на цикл и готовимся к нему.';
+  const out=[
+    'Физо: '+cnt('phys')+' раз(а) в неделю по 30–45 мин на все группы мышц (силовые — не меньше 2 дней в неделю). Вместе с игрой набирайте 150–300 мин нагрузки умеренной интенсивности в неделю (ориентир ВОЗ).',
+    'Мобильность и растяжка: '+cnt('mob')+' раз(а) в неделю по 10–15 мин; разминка 10 мин перед каждой игрой.',
+    'Игры: '+cnt('match')+' раз(а) в неделю — на каждой игре берите 1–2 цели из тех, что разобрали на технике.'];
+  if(cnt('video')>0)out.push('Видео: '+cnt('video')+' раз(а) в неделю по 20–30 мин — разбор своих розыгрышей или матча профи на один элемент.');
+  if(cnt('mental')>0)out.push('Ментальная часть: '+cnt('mental')+' раз в неделю — рутина между очками, дыхание, постановка цели на игру.');
+  out.push('После каждой игры или тренировки — 1–2 строки: что получилось, что нет.');
+  out.push('Восстановление: сон 7–9 часов, минимум 1–2 дня в неделю без нагрузки. Боль — повод остановиться и обратиться к врачу.');
+  // focus skills
+  let foc=weakItems(st).slice(0,3);
+  if(!foc.length)foc=ALL.filter(i=>st.r[i[0]]>0&&st.r[i[0]]<=3).sort((a,b2)=>st.r[a[0]]-st.r[b2[0]]).slice(0,3);
+  const gs=SK.map(g=>[g,gAvg(st.r,g.items)]).filter(x=>x[1]>0).sort((a,b2)=>a[1]-b2[1]);
+  const cyc=sp.cycle||'';let wk=0,end='';
+  if(cyc){wk=Math.floor((pD(today())-pD(cyc))/(7*86400000))+1;end=addDays(cyc,56)}
+  return {band:b,bandName:STR_BANDS[b],focus:f,days,rows,total,tourn,out,foc,weakG:gs.length>1?gs[0][0]:null,cyc,wk,end};
+}
+const STR_PHASES=[['Неделя 1','Диагностика: проставить оценки, выбрать 2–3 цели цикла.'],['Недели 2–4','База: техника по зонам роста и физическая основа.'],['Недели 5–7','Игра: тактика, розыгрыши, контрольные игры или турнир.'],['Неделя 8','Переоценка: сравнить портрет «было/стало», поставить цели нового цикла.']];
+const STR_SRC=['ВОЗ, рекомендации по физической активности для взрослых: 150–300 мин умеренной аэробной нагрузки в неделю и силовые упражнения не менее 2 дней в неделю (who.int).','Структура цикла «техника → тактика → игры» и пересмотр плана через 8 недель; 3–4 занятия на корте по 75–90 мин плюс 2 внекортовые тренировки по 30–45 мин (8-Week Padel Training Plan for Intermediate Players, padel-rules.pages.dev).','Верхний ориентир для цели «5 уровень»: 3 занятия с тренером, 2 товарищеские игры в неделю, 1 турнир в 1–2 месяца (пример режима, J. Galea, jeangalea.com).'];
+function tabStrat(st,box){
+  if(!st.strat)st.strat={focus:'dev',days:4,cycle:'',ov:{}};
+  const sp=st.strat;if(!sp.ov)sp.ov={};
+  const p=stratPlan(st),sv=()=>saveSt(st);
+  box.appendChild(ce('div',{className:'card'},
+    ce('div',{className:'gt',style:'margin:0 0 6px',text:'🧭 Параметры стратегии'}),
+    ce('div',{style:'font-weight:600',text:'Ступень: '+p.bandName}),
+    ce('div',{className:'muted',text:'Определяется по общему уровню из «Портрета» (если оценок нет — по полю «Уровень»).'}),
+    fld('Фокус',selectEl(STR_FOCUS.map(x=>x[1]),(STR_FOCUS.find(x=>x[0]===p.focus)||STR_FOCUS[0])[1],v=>{sp.focus=STR_FOCUS.find(x=>x[1]===v)[0];sp.ov={};sv();renderSt()})),
+    fld('Сколько дней в неделю ученик может заниматься',selectEl(['2','3','4','5','6','7'],String(p.days),v=>{sp.days=+v;sp.ov={};sv();renderSt()}))));
+  // cycle
+  const cyc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🔁 Цикл 8 недель'}));
+  if(p.cyc){
+    cyc.appendChild(ce('div',{style:'font-weight:600',text:p.wk<=8?('Неделя '+p.wk+' из 8 · переоценка до '+fmtD(p.end)):'Цикл завершён — пора переоценить ученика'}));
+    cyc.appendChild(ce('div',{className:'muted',text:'Начало: '+fmtD(p.cyc)}));
+  }else cyc.appendChild(ce('div',{className:'muted',text:'Цикл пока не начат.'}));
+  STR_PHASES.forEach(x=>cyc.appendChild(ce('div',{style:'margin-top:6px'},ce('b',{text:x[0]+': '}),ce('span',{text:x[1]}))));
+  cyc.appendChild(ce('button',{className:'big',text:p.cyc?'Начать новый цикл (с сегодня)':'Начать цикл (с сегодня)',onclick:()=>{recordHistory(st);sp.cycle=today();sv();toast('Цикл начат. Переоценка — '+fmtD(addDays(today(),56))+'.');renderSt()}}));
+  box.appendChild(cyc);
+  // weekly table
+  const wc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'📆 Рекомендуемая неделя'}));
+  p.rows.forEach(x=>{
+    const chg=x.n!==x.def,set=v=>{sp.ov[x.k]=Math.max(0,Math.min(7,v));if(sp.ov[x.k]===x.def)delete sp.ov[x.k];sv();renderSt()};
+    wc.appendChild(ce('div',{className:'r2',style:'justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd)'},
+      ce('div',{style:'flex:1;min-width:0'},ce('div',{text:x.ic+' '+x.name}),ce('div',{className:'muted',text:x.dur+(chg?' · изменено (рекомендация '+x.def+')':'')})),
+      ce('div',{className:'stp'},ce('button',{text:'−',onclick:()=>set(x.n-1)}),ce('b',{text:String(x.n)}),ce('button',{text:'＋',onclick:()=>set(x.n+1)}))));
+  });
+  wc.appendChild(ce('div',{style:'margin-top:8px;font-weight:600',text:'Итого около '+p.total+' мин в неделю'+(p.total>=150?' — выполняет ориентир ВОЗ (150+ мин)':' — меньше ориентира ВОЗ 150 мин')}));
+  if(Object.keys(sp.ov).length)wc.appendChild(ce('button',{style:'margin-top:8px',text:'Сбросить к рекомендации',onclick:()=>{sp.ov={};sv();renderSt()}}));
+  box.appendChild(wc);
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🏆 Турниры и контрольные точки'}),ce('div',{text:p.tourn}),
+    ce('div',{style:'margin-top:6px',text:'Переоценка навыков — раз в 8 недель; промежуточная проверка — после каждого турнира.'})));
+  const fc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🎯 Фокус ближайшего цикла'}));
+  if(p.foc.length){p.foc.forEach(i=>fc.appendChild(ce('div',{text:'• '+i[1]+' — '+st.r[i[0]]+' из 5'})));
+    if(p.weakG)fc.appendChild(ce('div',{className:'muted',style:'margin-top:6px',text:'Самая слабая группа сейчас: '+p.weakG.t+' — заложите в неё больше времени.'}))}
+  else fc.appendChild(ce('div',{className:'muted',text:'Проставьте оценки во вкладке «Портрет» — здесь появятся приоритеты.'}));
+  box.appendChild(fc);
+  const oc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🏠 Что ученик делает вне занятий (идёт в PDF)'}));
+  p.out.forEach(t=>oc.appendChild(ce('div',{style:'margin:4px 0',text:'• '+t})));box.appendChild(oc);
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🤝 Как удерживать ученика в развитии (для тренера)'}),
+    ['Покажите динамику: на переоценке сравните радар «было/стало» и уровень с шагом 0,25 — прогресс должен быть виден глазами.',
+     'Ставьте микро-цели на 2 недели (1–2 навыка), а не «стать лучше»: маленькие победы удерживают мотивацию.',
+     'Давайте домашнее задание и просите 1–2 строки после игры — ученик вовлекается между занятиями.',
+     'Соцэлемент: парные игры, клубные лиги, дружеские турниры — людям важна среда, а не только удар.',
+     'Меняйте акцент по фазам цикла (техника → тактика → игры), чтобы не было ощущения топтания на месте.',
+     'Раз в цикл — отдельный разговор о целях: что ученик хочет через 3 месяца и чем готов жертвовать.'].map(t=>ce('div',{style:'margin:4px 0',text:'• '+t}))));
+  box.appendChild(ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'📚 Источники и оговорка'}),
+    STR_SRC.map(t=>ce('div',{className:'muted',style:'margin:4px 0',text:'• '+t})),
+    ce('div',{className:'muted',style:'margin-top:6px',text:'Цифры — ориентиры для взрослых любителей, а не жёсткие нормы и не медицинская рекомендация. Корректируйте нагрузку по состоянию ученика.'})));
 }
 // ===== Данные тренера и PDF =====
 let memCoach={};
@@ -1233,7 +1352,8 @@ function pdfPages(st){
   if(rated){
     h2('Портрет по навыкам',null,560);
     const sets=[['Общий портрет',SK.map(g=>g.short),SK.map(g=>gAvg(r,g.items))],
-      ['Техника (удары)',SK[0].items.map(i=>i[2]),SK[0].items.map(i=>r[i[0]]||0)],
+      ['Техника: основные удары',SK[0].items.slice(0,11).map(i=>i[2]),SK[0].items.slice(0,11).map(i=>r[i[0]]||0)],
+      ['Техника: специальные',SK[0].items.slice(11).map(i=>i[2]),SK[0].items.slice(11).map(i=>r[i[0]]||0)],
       ['Физика',SK[2].items.map(i=>i[2]),SK[2].items.map(i=>r[i[0]]||0)],
       ['Тактика и психология',SK[1].items.concat(SK[3].items).map(i=>i[2]),SK[1].items.concat(SK[3].items).map(i=>r[i[0]]||0)]];
     const SZ=540;
@@ -1279,6 +1399,31 @@ function pdfPages(st){
     h2('Над чем работаем',null,120);
     st.goals.forEach(g=>{const lines=wrap(g.text,PW-2*PM-70,28,false);need(lines.length*40+10);y+=40;
       txt('→',PM+6,30,true,'#8fd400');lines.forEach((l,i)=>{if(i)y+=40;txt(l,PM+56,28,false,'#12121a')});y+=6});
+  }
+  // strategy
+  {const sp=stratPlan(st);
+    if(y>PH-900)newPage();
+    h2('Стратегия развития','#2f8bff',420);
+    kv('Ступень',sp.bandName);kv('Фокус',(STR_FOCUS.find(x=>x[0]===sp.focus)||STR_FOCUS[0])[1]);kv('Дней в неделю','до '+sp.days);
+    kv('Цикл',sp.cyc?('с '+fmtD(sp.cyc)+', переоценка до '+fmtD(sp.end)):'8 недель, затем переоценка навыков');
+    need(90);y+=52;txt('План недели',PM,30,true,'#12121a');y+=8;
+    for(const x of sp.rows){
+      if(!x.n)continue;need(60);y+=46;
+      fnt(27,false);c.fillStyle='#12121a';c.fillText(x.name,PM,y);
+      txt(x.n+' × '+x.dur,PW-PM,27,true,'#12121a','right');
+      c.fillStyle='#e3e6ee';c.fillRect(PM,y+12,PW-2*PM,2);
+    }
+    need(60);y+=50;txt('Итого около '+sp.total+' мин в неделю',PM,27,true,'#2f6fed');y+=6;
+    need(200);y+=52;txt('Турниры и контрольные точки',PM,30,true,'#12121a');y+=4;
+    para(sp.tourn,27,'#12121a',PM+10);
+    para('Переоценка навыков — раз в 8 недель; промежуточная проверка — после каждого турнира.',27,'#12121a',PM+10);
+    need(220);y+=52;txt('Фазы цикла',PM,30,true,'#12121a');y+=4;
+    STR_PHASES.forEach(x=>para(x[0]+': '+x[1],27,'#12121a',PM+10));
+    if(sp.foc.length){need(220);y+=52;txt('Фокус ближайшего цикла',PM,30,true,'#12121a');y+=4;sp.foc.forEach(i=>para('• '+i[1]+' — '+st.r[i[0]]+' из 5',27,'#12121a',PM+10))}
+    need(260);y+=52;txt('Что делаю сам, кроме тренировок с тренером',PM,30,true,'#12121a');y+=4;
+    sp.out.forEach(t=>para('• '+t,27,'#12121a',PM+10));
+    need(100);y+=40;txt('Ориентиры составлены по открытым источникам (ВОЗ; методики 8-недельных циклов в падел) и не являются',PM,20,false,'#6b7080');
+    y+=28;txt('медицинской рекомендацией. Нагрузку согласуйте с тренером и врачом.',PM,20,false,'#6b7080');
   }
   // footers
   pages.forEach((p,i)=>{
@@ -1424,8 +1569,8 @@ function login(n){
   user=n;mem=null;
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
-  items=[];moves=[];hist=[];drag=null;setTool('move');stReset();
-  document.getElementById('who').textContent='👤 '+n+' · версия 16.11';
+  items=[];moves=[];hist=[];drag=null;setTool('move');stReset();seedBoard();
+  document.getElementById('who').textContent='👤 '+n+' · версия 17.11';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au').hidden=true;draw();
