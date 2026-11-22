@@ -1747,7 +1747,7 @@ let memUsers={},sel=null;
 // ===== Резервная копия данных кабинета =====
 async function backupSave(){
   try{
-    const data={app:'padel-board',v:1,date:new Date().toISOString(),cabinet:user,positions:getAll(),students:getSt(),coach:getCoach()};
+    const data={app:'padel-board',v:1,date:new Date().toISOString(),cabinet:user,positions:getAll(),students:getSt(),coach:getCoach(),exercises:getEx()};
     const blob=new Blob([JSON.stringify(data)],{type:'application/json'}),name='padel-copy-'+(user||'cabinet')+'-'+today()+'.json';
     let f=null;try{f=new File([blob],name,{type:'application/json'})}catch(e){}
     if(f&&navigator.canShare&&navigator.canShare({files:[f]})){
@@ -1761,20 +1761,22 @@ async function backupSave(){
 function backupApply(d,replace){
   let np=0,ns=0;
   const ps=Array.isArray(d.positions)?d.positions:[],sts=Array.isArray(d.students)?d.students:[],co=(d.coach&&typeof d.coach==='object')?d.coach:{};
-  if(replace){putAll(ps);putSt(sts);putCoach(co);np=ps.length;ns=sts.length}
+  const ex=(d.exercises&&typeof d.exercises==='object')?d.exercises:null;
+  if(replace){putAll(ps);putSt(sts);putCoach(co);np=ps.length;ns=sts.length;if(ex)putEx({add:ex.add||{},edit:ex.edit||{},del:ex.del||[]})}
   else{
     const ap=getAll(),ids=new Set(ap.map(p=>p.id));
     ps.forEach(p=>{if(p&&!ids.has(p.id)){ap.push(p);np++}});putAll(ap);
     const as=getSt(),sid=new Set(as.map(x=>x.id));
     sts.forEach(x=>{if(x&&!sid.has(x.id)){as.push(x);ns++}});putSt(as);
     const cur=getCoach();Object.keys(co).forEach(k=>{if(!cur[k]&&co[k])cur[k]=co[k]});putCoach(cur);
+    if(ex){const cx=getEx();Object.keys(ex.add||{}).forEach(k=>{const a=cx.add[k]=cx.add[k]||[],ids=new Set(a.map(c=>c.id));ex.add[k].forEach(c=>{if(c&&!ids.has(c.id))a.push(c)})});Object.keys(ex.edit||{}).forEach(k=>{if(!cx.edit[k])cx.edit[k]=ex.edit[k]});(ex.del||[]).forEach(x=>{if(cx.del.indexOf(x)<0)cx.del.push(x)});putEx(cx)}
   }
   return {np,ns};
 }
 function backupMenu(){
   openModal((bx,close)=>{
     bx.appendChild(ce('div',{style:'font-weight:700;font-size:17px;margin-bottom:6px',text:'💾 Копия данных кабинета'}));
-    bx.appendChild(ce('div',{className:'muted',text:'В копию входят ученики, сохранённые позиции и данные тренера этого кабинета ('+(user||'')+'). Пароли в файл не попадают.'}));
+    bx.appendChild(ce('div',{className:'muted',text:'В копию входят ученики, сохранённые позиции, свои упражнения и данные тренера этого кабинета ('+(user||'')+'). Пароли в файл не попадают.'}));
     bx.appendChild(ce('button',{className:'big',style:'margin-top:10px',text:'Сохранить копию в файл',onclick:()=>{backupSave()}}));
     const msg=ce('div',{className:'muted',style:'margin-top:8px'});
     const inp=ce('input',{type:'file',accept:'.json,application/json',style:'display:none'});
@@ -1834,7 +1836,7 @@ function login(n){
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
   items=[];moves=[];hist=[];drag=null;setTool('move');stReset();seedBoard();
-  document.getElementById('who').textContent='👤 '+n+' · версия 17.11-з';
+  document.getElementById('who').textContent='👤 '+n+' · версия 22.11-а';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au').hidden=true;draw();try{stBadge()}catch(e){}if(window.__exReady)showHome();else window.__homePending=1;
@@ -2528,33 +2530,88 @@ function exRender(){
     if(exCat.coach)exBody.appendChild(ce('div',{className:'ex-note coach',text:'Только для тренера — в PDF ученика не попадает.'}));
     else exBody.appendChild(ce('div',{className:'ex-note self',text:'Самостоятельная работа. В PDF ученика — только список качеств; сами упражнения остаются здесь.'}));
     SK.find(x=>x.g===exCat.g).items.forEach(it=>{
-      const n=(XD[it[0]]||[]).length;
+      const n=exItems(it[0]).length;
       exBody.appendChild(ce('button',{className:'ex-row',onclick:()=>{exSkill=it;exView='list';exRender()}},ce('b',{text:it[1]}),ce('small',{text:n+' упр.'}),ce('span',{text:'›'})));
     });
   }else if(exView==='list'){
-    exHeader(exSkill[1],'← '+exCat.t,()=>{exView='skills';exRender()});
-    (XD[exSkill[0]]||[]).forEach((e,i)=>{
+    exHeader(exSkill[1],'← '+exCat.t,()=>{exView='skills';exRender()},ce('button',{text:'＋ Своё',onclick:()=>exForm(null)}));
+    exItems(exSkill[0]).forEach((e,i)=>{
       exBody.appendChild(ce('button',{className:'ex-row big',onclick:()=>{exIdx=i;exView='one';exRender()}},
-        ce('span',{className:'ex-n',text:String(i+1)}),ce('span',{style:'flex:1;min-width:0;text-align:left'},ce('b',{text:e[0]}),ce('br'),ce('small',{text:e[1].split('. ')[0]+'.'})),ce('span',{text:'▶'})));
+        ce('span',{className:'ex-n',text:String(i+1)}),ce('span',{style:'flex:1;min-width:0;text-align:left'},ce('b',{text:e.t}),(e.mine?ce('span',{className:'ex-tag self',style:'margin-left:6px',text:'своё'}):e.edited?ce('span',{className:'ex-tag coach',style:'margin-left:6px',text:'изменено'}):ce('span')),ce('br'),ce('small',{text:(e.how||'').split('. ')[0]+(e.how?'.':'')})),ce('span',{text:'▶'})));
     });
+    const dn=exDeleted(exSkill[0]);
+    if(dn>0)exBody.appendChild(ce('button',{className:'big',style:'opacity:.85',text:'↺ Вернуть удалённые ('+dn+')',onclick:()=>{const d=getEx();d.del=(d.del||[]).filter(x=>x.split('#')[0]!==exSkill[0]);putEx(d);toast('Удалённые упражнения возвращены.');exRender()}}));
+    if(!exItems(exSkill[0]).length)exBody.appendChild(ce('div',{className:'muted',text:'Упражнений нет. Нажмите «＋ Своё», чтобы добавить.'}));
   }else{
-    const e=XD[exSkill[0]][exIdx];
-    exHeader(exSkill[1]+' · '+(exIdx+1)+'/'+XD[exSkill[0]].length,'← Список',()=>{exView='list';exRender()});
-    exBody.appendChild(ce('h2',{className:'ex-h',text:e[0]}));
-    exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Как выполнять'}),ce('p',{text:e[1]})));
-    exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Дозировка'}),ce('p',{text:e[2]})));
-    const xe=(XE[exSkill[0]]||[])[exIdx];
-    if(xe){
-      exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Шаги'}),ce('p',{text:xe[0]})));
-      exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Типичные ошибки'}),ce('p',{text:xe[1]})));
-      exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Вариант для детей 6–13 лет'}),ce('p',{text:xe[2]})));
-    }
+    const list=exItems(exSkill[0]);
+    if(exIdx>=list.length)exIdx=Math.max(0,list.length-1);
+    const e=list[exIdx];
+    if(!e){exView='list';exRender();return}
+    exHeader(exSkill[1]+' · '+(exIdx+1)+'/'+list.length,'← Список',()=>{exView='list';exRender()});
+    exBody.appendChild(ce('h2',{className:'ex-h',text:e.t}));
+    exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Как выполнять'}),ce('p',{text:e.how||'—'})));
+    exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Дозировка'}),ce('p',{text:e.dose||'—'})));
+    if(e.steps)exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Шаги'}),ce('p',{text:e.steps})));
+    if(e.err)exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Типичные ошибки'}),ce('p',{text:e.err})));
+    if(e.kids)exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Вариант для детей 6–13 лет'}),ce('p',{text:e.kids})));
     if(!exCat.coach)exBody.appendChild(ce('div',{className:'ex-note',text:'Детям 6–13 лет — в игровой форме, без отягощений, объём вдвое меньше.'}));
+    const act=ce('div',{className:'ex-ctl'});
+    act.appendChild(ce('button',{text:'✏️ Править',onclick:()=>exForm(e)}));
+    const dl=ce('button');twoStep(dl,'🗑 Удалить',()=>{exRemove(e);toast('Упражнение удалено.');exView='list';exRender()});act.appendChild(dl);
+    if(e.edited)act.appendChild(ce('button',{text:'↺ Исходный текст',onclick:()=>{const d=getEx();if(d.edit)delete d.edit[e.id];putEx(d);toast('Возвращён исходный текст.');exRender()}}));
+    exBody.appendChild(act);
     const nav=ce('div',{className:'ex-ctl'});
     if(exIdx>0)nav.appendChild(ce('button',{text:'‹ Предыдущее',onclick:()=>{exIdx--;exRender()}}));
-    if(exIdx<XD[exSkill[0]].length-1)nav.appendChild(ce('button',{text:'Следующее ›',onclick:()=>{exIdx++;exRender()}}));
+    if(exIdx<list.length-1)nav.appendChild(ce('button',{text:'Следующее ›',onclick:()=>{exIdx++;exRender()}}));
     exBody.appendChild(nav);
   }
+}
+// ----- свои упражнения (отдельно для каждого кабинета) -----
+let memEx={};
+function getEx(){try{const t=localStorage.getItem('padel-ex-v1:'+user);const o=t?JSON.parse(t):(memEx[user]||{});return {add:o.add||{},edit:o.edit||{},del:o.del||[]}}catch(e){const o=memEx[user]||{};return {add:o.add||{},edit:o.edit||{},del:o.del||[]}}}
+function putEx(o){memEx[user]=o;try{localStorage.setItem('padel-ex-v1:'+user,JSON.stringify(o));return true}catch(e){return false}}
+function exItems(sk){
+  const d=getEx(),out=[];
+  (XD[sk]||[]).forEach((e,i)=>{
+    const id=sk+'#'+i;if(d.del.indexOf(id)>=0)return;
+    const xe=(XE[sk]||[])[i]||[],ed=d.edit[id];
+    const o={id:id,sk:sk,mine:false,edited:!!ed,t:e[0],how:e[1],dose:e[2],steps:xe[0]||'',err:xe[1]||'',kids:xe[2]||''};
+    if(ed)['t','how','dose','steps','err','kids'].forEach(k=>{if(typeof ed[k]==='string')o[k]=ed[k]});
+    out.push(o);
+  });
+  (d.add[sk]||[]).forEach(c=>out.push({id:c.id,sk:sk,mine:true,edited:false,t:c.t,how:c.how||'',dose:c.dose||'',steps:c.steps||'',err:c.err||'',kids:c.kids||''}));
+  return out;
+}
+function exDeleted(sk){return getEx().del.filter(x=>x.split('#')[0]===sk).length}
+function exRemove(e){
+  const d=getEx();
+  if(e.mine){d.add[e.sk]=(d.add[e.sk]||[]).filter(c=>c.id!==e.id)}
+  else{if(d.del.indexOf(e.id)<0)d.del.push(e.id);if(d.edit)delete d.edit[e.id]}
+  putEx(d);
+}
+function exForm(e){
+  openModal((bx,close)=>{
+    bx.style.maxHeight='88vh';bx.style.overflowY='auto';
+    bx.appendChild(ce('div',{style:'font-weight:700;font-size:17px;margin-bottom:6px',text:e?'Править упражнение':'Новое упражнение — '+exSkill[1]}));
+    const ta=(v,r)=>ce('textarea',{value:v||'',rows:r||3,style:'min-height:60px'});
+    const t=ce('input',{type:'text',value:e?e.t:''}),how=ta(e&&e.how,4),dose=ta(e&&e.dose,2),steps=ta(e&&e.steps,4),err=ta(e&&e.err,3),kids=ta(e&&e.kids,3);
+    t.value=e?e.t:'';how.value=e?e.how:'';dose.value=e?e.dose:'';steps.value=e?e.steps:'';err.value=e?e.err:'';kids.value=e?e.kids:'';
+    bx.appendChild(fld('Название',t));bx.appendChild(fld('Как выполнять',how));bx.appendChild(fld('Дозировка',dose));
+    bx.appendChild(fld('Шаги (необязательно)',steps));bx.appendChild(fld('Типичные ошибки (необязательно)',err));bx.appendChild(fld('Вариант для детей 6–13 лет (необязательно)',kids));
+    const msg=ce('div',{className:'muted',style:'color:#ff7c8a'});bx.appendChild(msg);
+    bx.appendChild(ce('button',{className:'big',text:'Сохранить',onclick:()=>{
+      const tt=t.value.trim();if(!tt){msg.textContent='Введите название.';return}
+      const v={t:tt,how:how.value.trim(),dose:dose.value.trim(),steps:steps.value.trim(),err:err.value.trim(),kids:kids.value.trim()};
+      const d=getEx();
+      if(!e){(d.add[exSkill[0]]=d.add[exSkill[0]]||[]).push(Object.assign({id:'c_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)},v))}
+      else if(e.mine){const a=d.add[e.sk]||[],i=a.findIndex(c=>c.id===e.id);if(i>=0)a[i]=Object.assign({id:e.id},v)}
+      else{d.edit[e.id]=v}
+      putEx(d);close();toast('Сохранено.');
+      if(!e){exView='list'}
+      exRender();
+    }}));
+    bx.appendChild(ce('button',{style:'margin-top:8px',text:'Отмена',onclick:close}));
+  });
 }
 let exTcur=0;
 function exSizeCanvas(){
