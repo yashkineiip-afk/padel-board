@@ -966,9 +966,9 @@ function fld(label,input){return ce('div',{className:'f'},ce('label',{text:label
 function selectEl(opts,val,fn){const s=ce('select');opts.forEach(o=>s.appendChild(ce('option',{value:o,text:o})));s.value=val;s.onchange=()=>fn(s.value);return s}
 function gAvg(r,items){return items.length?items.reduce((a,i)=>a+(r[i[0]]||0),0)/items.length:0}
 function overall(r){const v=SK.map(g=>gAvg(r,g.items));return v.reduce((a,b)=>a+b,0)/v.length}
-const KIDAGES=['6–8 лет','9–10 лет','11–13 лет'];
+const KIDAGES=['5–7 лет','7–9 лет','9–10 лет','11–13 лет','13–15 лет'],KID_YOUNG=['5–7 лет','7–9 лет'];
 function kidOf(st){return st.kid!==undefined?!!st.kid:/oksana/i.test(user||'')}
-function kidAge(st){return st.kidAge||'9–10 лет'}
+function kidAge(st){const m={'6–8 лет':'7–9 лет','10–11 лет':'9–10 лет','12–13 лет':'11–13 лет'};const v=st.kidAge?(m[st.kidAge]||st.kidAge):'';return KIDAGES.indexOf(v)>=0?v:'9–10 лет'}
 function newStudent(){return {id:uid(),kid:/oksana/i.test(user||''),kidAge:'9–10 лет',name:'',age:'',level:'Любитель',hand:'Правша',side:'Универсал',goal:'',r:{},journal:[],plan:{date:'',items:[]},goals:[],history:[],created:today()}}
 function recordHistory(st){
   const d=today(),snap={date:d,r:Object.assign({},st.r)},i=st.history.findIndex(x=>x.date===d);
@@ -1273,10 +1273,10 @@ function stBand(st){
 }
 function pD(s){const a=s.split('-');return new Date(+a[0],+a[1]-1,+a[2])}
 function addDays(s,n){const d=pD(s);d.setDate(d.getDate()+n);const p=x=>String(x).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
-const KID_BASE={'6–8 лет':{tech:2,game:0,match:1,phys:3,mob:3,video:0,mental:0},'9–10 лет':{tech:2,game:1,match:2,phys:3,mob:3,video:0,mental:0},'11–13 лет':{tech:2,game:2,match:2,phys:3,mob:3,video:1,mental:1}};
+const KID_BASE={'5–7 лет':{tech:1,game:0,match:0,phys:3,mob:3,video:0,mental:0},'7–9 лет':{tech:2,game:0,match:1,phys:3,mob:3,video:0,mental:0},'9–10 лет':{tech:2,game:1,match:2,phys:3,mob:3,video:0,mental:0},'11–13 лет':{tech:2,game:2,match:2,phys:3,mob:3,video:1,mental:1},'13–15 лет':{tech:2,game:2,match:3,phys:3,mob:3,video:1,mental:1}};
 const KID_ROWS=[['tech','🎾','Занятие с тренером (игровая форма)','60 мин',60],['game','🧠','Игровая тренировка (мини-игры, розыгрыши)','60 мин',60],['match','🤝','Свободная игра с друзьями','45–60 мин',50],['phys','🤸','ОФП и координация (эстафеты, прыжки, мяч)','30 мин',30],['mob','🧘','Разминка и растяжка в игровой форме','10 мин',10],['video','🎥','Короткие видео (вместе с родителями)','10–15 мин',12],['mental','🧩','Внимание и эмоции (игры на концентрацию)','10 мин',10]];
-const KID_STAGE={'6–8 лет':'6–8 лет: играем и двигаемся','9–10 лет':'9–10 лет: учимся играть','11–13 лет':'11–13 лет: тренируемся и играем матчи'};
-const KID_TOURN={'6–8 лет':'Турниры не нужны. 1–2 раза в квартал — внутриклубный праздник с мини-играми и без рейтингов: главное, чтобы было весело.','9–10 лет':'Дружеские детские турниры или фестивали раз в 1–2 месяца. Первый старт — вместе с другом; важнее опыт, чем результат.','11–13 лет':'Детские турниры (категории до 12 / до 14 по правилам вашей федерации) примерно раз в месяц. После каждого — спокойный разбор с тренером без оценок «хорошо/плохо».'};
+const KID_STAGE={'5–7 лет':'5–7 лет: знакомимся с игрой через игры','7–9 лет':'7–9 лет: играем и двигаемся','9–10 лет':'9–10 лет: учимся играть','11–13 лет':'11–13 лет: тренируемся и играем матчи','13–15 лет':'13–15 лет: тренируемся и играем соревновательно'};
+const KID_TOURN={'5–7 лет':'Турниры не нужны. Только игры и праздники с мини-играми без рейтингов: главное, чтобы было весело.','13–15 лет':'Юношеские турниры (категории по правилам вашей федерации) примерно 1–2 раза в месяц, с днями отдыха. После каждого — спокойный разбор с тренером; следите за нагрузкой в период роста.','7–9 лет':'Турниры не нужны. 1–2 раза в квартал — внутриклубный праздник с мини-играми и без рейтингов: главное, чтобы было весело.','9–10 лет':'Дружеские детские турниры или фестивали раз в 1–2 месяца. Первый старт — вместе с другом; важнее опыт, чем результат.','11–13 лет':'Детские турниры (категории до 12 / до 14 по правилам вашей федерации) примерно раз в месяц. После каждого — спокойный разбор с тренером без оценок «хорошо/плохо».'};
 function stratPlanKid(st){
   const sp=st.strat||{},ag=kidAge(st),f=sp.focus||'dev',days=+sp.days||3,n=Object.assign({},KID_BASE[ag]),ov0=overall(st.r);
   if(ov0<1.5)n.game=Math.max(0,n.game-1);
@@ -1289,7 +1289,7 @@ function stratPlanKid(st){
   const total=rows.reduce((a,x)=>a+x.mins,0),cnt=k=>rows.find(x=>x.k===k).n;
   let tourn=KID_TOURN[ag];
   if(f==='fun')tourn='Только в удовольствие: праздники, мини-игры и дружеские встречи. Ребёнок должен хотеть приходить.';
-  if(f==='comp'&&ag!=='6–8 лет')tourn+=' Не больше 1–2 стартов в месяц и обязательно с днями отдыха.';
+  if(f==='comp'&&KID_YOUNG.indexOf(ag)<0)tourn+=' Не больше 1–2 стартов в месяц и обязательно с днями отдыха.';
   const out=[
     'Движение каждый день: в среднем не меньше 60 мин в день умеренной и высокой активности; 3 и более дней в неделю — прыжки, бег, лазание, упражнения с собственным весом (ориентир ВОЗ для 5–17 лет).',
     'ОФП и координация: '+cnt('phys')+' раз(а) в неделю по ~30 мин — эстафеты, скакалка, мяч; без тяжёлых весов.',
@@ -1298,8 +1298,8 @@ function stratPlanKid(st){
   if(cnt('video')>0)out.push('Короткие видео: '+cnt('video')+' раз в неделю по 10–15 мин вместе с родителями — выбрать один красивый удар и попробовать повторить.');
   if(cnt('mental')>0)out.push('Внимание и эмоции: '+cnt('mental')+' раз в неделю — игры на концентрацию, спокойное дыхание между розыгрышами.');
   out.push('Разные виды спорта (плавание, футбол, гимнастика, теннис) — разносторонность помогает координации и снижает риск перегрузки.');
-  out.push('Сон: 9–12 часов для 6–12 лет и 8–10 часов с 13 лет (рекомендации AASM). Не играть через боль; в период активного роста нагрузку обсуждаем с тренером.');
-  out.push('Инвентарь: ракетка по возрасту (до 10 лет — короткая детская ~300 г, 10–11 лет — ~330 г, 12–13 лет — лёгкая взрослая ~340 г); петля на запястье обязательна.');
+  out.push('Сон: 10–13 часов для 5-летних, 9–12 часов для 6–12 лет и 8–10 часов с 13 лет (рекомендации AASM). Не играть через боль; в период активного роста нагрузку обсуждаем с тренером.');
+  out.push('Инвентарь: ракетка по возрасту (до 10 лет — короткая детская ~300 г, 11–13 лет — ~330 г, 13–15 лет — лёгкая взрослая ~340 г); петля на запястье обязательна.');
   out.push('Родителям: поддерживать, а не тренировать с трибуны; после игры спрашивать, что понравилось, а не только про счёт.');
   out.push('После занятия — одна строка вместе с ребёнком: что получилось и что понравилось.');
   let foc=weakItems(st).slice(0,3);
@@ -1350,9 +1350,9 @@ const AL_COL={red:'#ff4d5a',amber:'#ffb020',green:'#7bd63a'};
 function dayDiff(a,b){return Math.round((pD(b)-pD(a))/86400000)}
 function weekStartOf(d){const wd=(pD(d).getDay()+6)%7;return addDays(d,-wd)}
 function tournInt(p){
-  let d=p.kid?({'6–8 лет':90,'9–10 лет':45,'11–13 лет':30}[p.band]||45):({A:120,B:60,C:30,D:30,E:15}[p.band]||60);
+  let d=p.kid?({'5–7 лет':120,'7–9 лет':90,'9–10 лет':45,'11–13 лет':30,'13–15 лет':21}[p.band]||45):({A:120,B:60,C:30,D:30,E:15}[p.band]||60);
   if(p.focus==='fun')d=Math.max(d*2,60);
-  if(p.focus==='comp'&&!(p.kid&&p.band==='6–8 лет'))d=Math.round(d*0.7);
+  if(p.focus==='comp'&&!(p.kid&&KID_YOUNG.indexOf(p.band)>=0))d=Math.round(d*0.7);
   return d;
 }
 function stAlerts(st){
@@ -1399,7 +1399,7 @@ function stAlerts(st){
   else if(gl.length&&!open)add('amber','plan','Все цели выполнены — поставьте новые','Все цели выполнены — молодец! Ждём новые цели');
   else if(gl.length)add('green','plan','Целей в работе: '+open+' из '+gl.length,'Целей в работе: '+open+' из '+gl.length);
   // турниры
-  const ti=tournInt(p),td=(st.tours||[]).map(x=>x.date).sort(),tl=td[td.length-1],noNeed=(!p.kid&&p.band==='A')||(p.kid&&p.band==='6–8 лет');
+  const ti=tournInt(p),td=(st.tours||[]).map(x=>x.date).sort(),tl=td[td.length-1],noNeed=(!p.kid&&p.band==='A')||(p.kid&&KID_YOUNG.indexOf(p.band)>=0);
   if(tl){const g=dayDiff(tl,t);
     if(g>ti*2)add('amber','strat','Давно не было турнира: '+g+' дн. (по стратегии раз в ~'+ti+' дн.)','Давно не было турнира или игрового старта: '+g+' дн.');
     else if(g>ti)add('amber','strat','Пора на турнир: прошло '+g+' дн. (по стратегии раз в ~'+ti+' дн.)','Пора на турнир или игровой старт (последний '+fmtD(tl)+')');
@@ -1474,7 +1474,7 @@ function tabStrat(st,box){
     ce('div',{style:'font-weight:600',text:(p.kid?'Ребёнок · ':'Ступень: ')+p.bandName}),
     ce('div',{className:'muted',text:p.kid?'Программа подобрана по возрастной группе и уровню из «Портрета». Группа выбирается в карточке ученика.':'Определяется по общему уровню из «Портрета» (если оценок нет — по полю «Уровень»).'}),
     fld('Фокус',selectEl(STR_FOCUS.map(x=>x[1]),(STR_FOCUS.find(x=>x[0]===p.focus)||STR_FOCUS[0])[1],v=>{sp.focus=STR_FOCUS.find(x=>x[1]===v)[0];sp.ov={};sv();renderSt()})),
-    fld('Сколько дней в неделю ученик может заниматься',selectEl(['2','3','4','5','6','7'],String(p.days),v=>{sp.days=+v;sp.ov={};sv();renderSt()}))));
+    fld('Сколько дней в неделю ученик может заниматься',selectEl(['1','2','3','4','5','6','7'],String(p.days),v=>{sp.days=+v;sp.ov={};sv();renderSt()}))));
   // cycle
   const cyc=ce('div',{className:'card'},ce('div',{className:'gt',style:'margin:0 0 6px',text:'🔁 Цикл 8 недель'}));
   if(p.cyc){
@@ -1836,7 +1836,7 @@ function login(n){
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
   items=[];moves=[];hist=[];drag=null;setTool('move');stReset();seedBoard();
-  document.getElementById('who').textContent='👤 '+n+' · версия 22.11-а';
+  document.getElementById('who').textContent='👤 '+n+' · версия 23.11-б';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au').hidden=true;draw();try{stBadge()}catch(e){}if(window.__exReady)showHome();else window.__homePending=1;
@@ -2122,7 +2122,7 @@ XD.disc=[
  ['Чек-лист подготовки','Сумка, вода, ракетка, форма — собираем накануне.','Перед каждой тренировкой.',XPS('timer','Чек-лист')],
  ['10 минут ежедневно','Короткие ежедневные упражнения лучше редких длинных.','Каждый день.',XPS('timer','10 минут')],
  ['Журнал тренировок','Записываем, что получилось, а что нет.','После каждой тренировки.',XPS('scale','Журнал')],
- ['Режим сна','Дети 6–13 лет спят 9–12 часов, взрослые 7–9.','Каждую ночь.',XPS('timer','Сон')]
+ ['Режим сна','Дети 5–15 лет спят 9–12 часов, взрослые 7–9.','Каждую ночь.',XPS('timer','Сон')]
 ];
 const XSRC=[
  ['PadelBrowser — Complete guide to padel shots','https://www.padelbrowser.com/blog/complete-guide-padel-shots'],
@@ -2522,7 +2522,7 @@ function exRender(){
     });
     const src=ce('div',{className:'ex-src'});
     src.appendChild(ce('b',{text:'Источники и оговорки'}));
-    src.appendChild(ce('p',{text:'Упражнения подобраны и пересказаны по открытым материалам о паделе (не дословно). Дозировки — ориентиры, подбирайте нагрузку по ученику. Названия редких ударов (руло, ганчо, портрес, чанклетасо и др.) в разных школах трактуют по-разному — сверяйте с вашей терминологией. Не является медицинской рекомендацией; детям 6–13 лет — игровой формат, вес тела, объём вдвое меньше.'}));
+    src.appendChild(ce('p',{text:'Упражнения подобраны и пересказаны по открытым материалам о паделе (не дословно). Дозировки — ориентиры, подбирайте нагрузку по ученику. Названия редких ударов (руло, ганчо, портрес, чанклетасо и др.) в разных школах трактуют по-разному — сверяйте с вашей терминологией. Не является медицинской рекомендацией; детям 5–15 лет — игровой формат, вес тела, объём вдвое меньше.'}));
     XSRC.forEach(s=>src.appendChild(ce('div',{},ce('a',{href:s[1],target:'_blank',rel:'noopener',text:s[0]}))));
     exBody.appendChild(src);
   }else if(exView==='skills'){
@@ -2553,8 +2553,8 @@ function exRender(){
     exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Дозировка'}),ce('p',{text:e.dose||'—'})));
     if(e.steps)exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Шаги'}),ce('p',{text:e.steps})));
     if(e.err)exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Типичные ошибки'}),ce('p',{text:e.err})));
-    if(e.kids)exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Вариант для детей 6–13 лет'}),ce('p',{text:e.kids})));
-    if(!exCat.coach)exBody.appendChild(ce('div',{className:'ex-note',text:'Детям 6–13 лет — в игровой форме, без отягощений, объём вдвое меньше.'}));
+    if(e.kids)exBody.appendChild(ce('div',{className:'ex-sec'},ce('b',{text:'Вариант для детей 5–15 лет'}),ce('p',{text:e.kids})));
+    if(!exCat.coach)exBody.appendChild(ce('div',{className:'ex-note',text:'Детям 5–15 лет — в игровой форме, без отягощений, объём вдвое меньше.'}));
     const act=ce('div',{className:'ex-ctl'});
     act.appendChild(ce('button',{text:'✏️ Править',onclick:()=>exForm(e)}));
     const dl=ce('button');twoStep(dl,'🗑 Удалить',()=>{exRemove(e);toast('Упражнение удалено.');exView='list';exRender()});act.appendChild(dl);
@@ -2597,7 +2597,7 @@ function exForm(e){
     const t=ce('input',{type:'text',value:e?e.t:''}),how=ta(e&&e.how,4),dose=ta(e&&e.dose,2),steps=ta(e&&e.steps,4),err=ta(e&&e.err,3),kids=ta(e&&e.kids,3);
     t.value=e?e.t:'';how.value=e?e.how:'';dose.value=e?e.dose:'';steps.value=e?e.steps:'';err.value=e?e.err:'';kids.value=e?e.kids:'';
     bx.appendChild(fld('Название',t));bx.appendChild(fld('Как выполнять',how));bx.appendChild(fld('Дозировка',dose));
-    bx.appendChild(fld('Шаги (необязательно)',steps));bx.appendChild(fld('Типичные ошибки (необязательно)',err));bx.appendChild(fld('Вариант для детей 6–13 лет (необязательно)',kids));
+    bx.appendChild(fld('Шаги (необязательно)',steps));bx.appendChild(fld('Типичные ошибки (необязательно)',err));bx.appendChild(fld('Вариант для детей 5–15 лет (необязательно)',kids));
     const msg=ce('div',{className:'muted',style:'color:#ff7c8a'});bx.appendChild(msg);
     bx.appendChild(ce('button',{className:'big',text:'Сохранить',onclick:()=>{
       const tt=t.value.trim();if(!tt){msg.textContent='Введите название.';return}
