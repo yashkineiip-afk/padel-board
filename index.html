@@ -944,8 +944,8 @@ const SK=[
 const ALL=SK.flatMap(g=>g.items);
 const LEVELS=['Новичок','Начинающий','Любитель','Продвинутый','Профи'],HANDS=['Правша','Левша'],SIDES=['Универсал','Справа','Слева'];
 const stEl=document.getElementById('st'),stHead=document.getElementById('st-head'),stBody=document.getElementById('st-body');
-let stListTab='students',stView='list',stCur=null,stTab='portrait',stDraft=null,stLast='',memSt={};
-function stReset(){stListTab='students';stEl.hidden=true;stView='list';stCur=null;stDraft=null;stLast=''}
+let stListTab='students',stView='list',stCur=null,stTab='portrait',stDraft=null,stLast='',stQuery='',memSt={};
+function stReset(){stQuery='';stListTab='students';stEl.hidden=true;stView='list';stCur=null;stDraft=null;stLast=''}
 function getSt(){try{const s=localStorage.getItem('padel-students-v1:'+user);return s?JSON.parse(s):(memSt[user]||[])}catch(e){return memSt[user]||[]}}
 function putSt(a){memSt[user]=a;let ok=false;try{localStorage.setItem('padel-students-v1:'+user,JSON.stringify(a));ok=true}catch(e){}try{stBadge()}catch(e){}return ok}
 function findSt(id){return getSt().find(x=>x.id===id)||null}
@@ -1030,20 +1030,35 @@ function viewList(){
   stBody.appendChild(lt);
   if(stListTab==='coach'){stBody.appendChild(ce('div',{className:'muted',text:'Эти данные печатаются в PDF для ученика: имя, контакты и клуб тренера.'}));stBody.appendChild(coachCard());return}
   const reds=a.map(s=>({s,A:stAlerts(s)})).filter(x=>alWorst(x.A)==='red');
-  if(reds.length){const bc=ce('div',{className:'card',style:'border-color:'+AL_COL.red},ce('div',{className:'gt',style:'margin:0 0 6px;color:'+AL_COL.red,text:'🔔 Требуют внимания: '+reds.length}));
+  const qn=t=>String(t||'').toLowerCase().replace(/ё/g,'е').trim();
+  const qin=ce('input',{type:'search',placeholder:'🔍 Поиск ученика: имя, цель, уровень…',value:stQuery,style:'width:100%;box-sizing:border-box;margin:6px 0'});
+  const info=ce('div',{className:'muted',style:'margin:0 0 6px'}),box=ce('div');
+  const paint=()=>{
+    stQuery=qin.value;const q=qn(stQuery);box.textContent='';
+    const f=q?a.filter(s=>q.split(/\s+/).every(w=>qn([s.name,s.goal,s.level,s.hand,s.side,kidOf(s)?('ребенок '+kidAge(s)):'взрослый'].join(' ')).indexOf(w)>=0)):a;
+    info.textContent=q?('Найдено: '+f.length+' из '+a.length):'';
+    if(q&&!f.length){box.appendChild(ce('div',{className:'muted',text:'Никого не найдено. Проверьте написание или очистите поиск.'}));return}
+    drawList(f,box,!q);
+  };
+  qin.oninput=paint;
+  stBody.appendChild(qin);stBody.appendChild(info);stBody.appendChild(box);
+  const drawList=(a2,host,showReds)=>{
+  if(showReds&&reds.length){const bc=ce('div',{className:'card',style:'border-color:'+AL_COL.red},ce('div',{className:'gt',style:'margin:0 0 6px;color:'+AL_COL.red,text:'🔔 Требуют внимания: '+reds.length}));
     reds.forEach(x=>{const f=x.A.filter(q=>q.lvl==='red')[0];bc.appendChild(ce('div',{style:'margin:5px 0;cursor:pointer',onclick:()=>{stCur=x.s.id;stTab=f.tab;stView='detail';renderSt()}},ce('b',{text:(x.s.name||'Без имени')+': '}),ce('span',{text:f.text})))});
-    stBody.appendChild(bc)}
-  if(!a.length)stBody.appendChild(ce('div',{className:'muted',text:'Пока нет учеников. Нажмите «＋ Новый», чтобы создать первого.'}));
-  a.forEach((s,ix)=>{
+    host.appendChild(bc)}
+  if(!a.length)host.appendChild(ce('div',{className:'muted',text:'Пока нет учеников. Нажмите «＋ Новый», чтобы создать первого.'}));
+  a2.forEach((s,ix)=>{
     const last=s.journal.map(j=>j.date).sort().pop(),ov=overall(s.r),parts=[s.level];
     parts.push('Уровень '+fl25(ov));
     parts.push(last?'Последнее занятие: '+fmtD(last):'Занятий в журнале нет');
     if(s.plan.items.length)parts.push('План'+(s.plan.date?' на '+fmtD(s.plan.date):'')+': '+s.plan.items.length+' п.');
     const AL=stAlerts(s),wl=alWorst(AL),rs=AL.filter(q=>q.lvl==='red').slice(0,2);
-    stBody.appendChild(ce('div',{className:'card tap'+(ix%2?' alt':''),style:'border-left:5px solid '+AL_COL[wl],onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
+    host.appendChild(ce('div',{className:'card tap'+(ix%2?' alt':''),style:'border-left:5px solid '+AL_COL[wl],onclick:()=>{stCur=s.id;stTab='portrait';stView='detail';renderSt()}},
       ce('div',{style:'font-weight:600;font-size:17px'},alertDot(wl),s.name||'Без имени'),ce('div',{className:'muted',text:parts.join(' · ')}),
       rs.map(q=>ce('div',{style:'color:'+AL_COL.red+';font-size:14px;margin-top:3px',text:'● '+q.text}))));
   });
+  };
+  paint();
 }
 function infoCard(st,isNew,onName){
   const sv=()=>{if(!isNew)saveSt(st)};
@@ -1836,7 +1851,7 @@ function login(n){
   try{localStorage.setItem('padel-session-v1',n)}catch(e){}
   try{const old=localStorage.getItem('padel-positions-v1');if(old&&!localStorage.getItem('padel-legacy-claimed')&&!localStorage.getItem(pk())){localStorage.setItem(pk(),old);localStorage.setItem('padel-legacy-claimed',n)}}catch(e){}
   items=[];moves=[];hist=[];drag=null;setTool('move');stReset();seedBoard();
-  document.getElementById('who').textContent='👤 '+n+' · версия 23.11-б';
+  document.getElementById('who').textContent='👤 '+n+' · версия 28.11-а';
   document.getElementById('ptitle').textContent='Позиции: '+n;
   document.getElementById('au-pw').value='';document.getElementById('au-pw2').value='';
   document.getElementById('au').hidden=true;draw();try{stBadge()}catch(e){}if(window.__exReady)showHome();else window.__homePending=1;
